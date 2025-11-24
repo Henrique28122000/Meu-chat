@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
@@ -19,23 +20,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
-      // Register/Login with PHP Backend
-      // The API returns { status: 'success', user_id: 123 } usually, or we use UID
       const photoUrl = user.photoURL || '';
       
-      // We pass the Firebase UID to the PHP backend.
-      // Ideally backend returns the MySQL ID.
       const response = await api.registerUser(
-        user.displayName || 'User',
+        user.displayName || 'Usuário',
         user.email || '',
         user.uid,
         photoUrl
       );
 
-      // Create a unified user object
       const appUser = {
         uid: user.uid,
-        id: response.user_id || user.uid, // Fallback if API doesn't return ID immediately
+        id: response.user_id || user.uid,
         name: user.displayName,
         email: user.email,
         photo: photoUrl
@@ -44,38 +40,45 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       onLogin(appUser);
     } catch (err: any) {
       console.error(err);
-      setError('Failed to login via Google. ' + err.message);
+      setError('Falha no login com Google. ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-white p-6">
-      <div className="mb-8 p-4 bg-blue-100 rounded-full">
-        <MessageCircle size={64} className="text-blue-600" />
-      </div>
-      <h1 className="text-2xl font-bold mb-2 text-gray-800">Welcome to PH Chat</h1>
-      <p className="text-gray-500 mb-8 text-center">Connect with friends securely via our custom platform.</p>
+    <div className="flex flex-col items-center justify-center h-full bg-white p-6 relative overflow-hidden">
       
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      <div className="absolute top-0 left-0 w-full h-64 bg-[#00a884] rounded-b-[30%] -z-0"></div>
 
-      <button
-        onClick={handleGoogleLogin}
-        disabled={loading}
-        className="flex items-center justify-center w-full max-w-xs bg-white border border-gray-300 shadow-sm hover:shadow-md text-gray-700 font-medium py-3 px-4 rounded-lg transition-all"
-      >
-        {loading ? (
-          <span className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin mr-2"></span>
-        ) : (
-          <img 
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
-            alt="Google" 
-            className="w-5 h-5 mr-3"
-          />
-        )}
-        Sign in with Google
-      </button>
+      <div className="z-10 bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm flex flex-col items-center">
+          <div className="mb-6 p-4 bg-green-50 rounded-full">
+            <MessageCircle size={64} className="text-[#008069]" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2 text-gray-800">PH Chat</h1>
+          <p className="text-gray-500 mb-8 text-center text-sm">Conecte-se com amigos de forma rápida e segura.</p>
+          
+          {error && <p className="text-red-500 text-xs mb-4 text-center">{error}</p>}
+
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="flex items-center justify-center w-full bg-white border border-gray-300 shadow-sm hover:shadow-md text-gray-700 font-medium py-3 px-4 rounded-full transition-all hover:bg-gray-50 active:scale-95"
+          >
+            {loading ? (
+              <span className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin mr-2"></span>
+            ) : (
+              <img 
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+                alt="Google" 
+                className="w-5 h-5 mr-3"
+              />
+            )}
+            Entrar com Google
+          </button>
+      </div>
+      
+      <p className="absolute bottom-6 text-xs text-gray-400">Desenvolvido com ❤️ por PH</p>
     </div>
   );
 };

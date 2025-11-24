@@ -1,3 +1,4 @@
+
 export interface User {
   id: string; // Internal API ID
   uid: string; // Firebase UID
@@ -15,6 +16,16 @@ export interface Message {
   type: 'text' | 'audio';
   timestamp: string;
   is_sent_by_me?: boolean;
+}
+
+export interface Status {
+  id: string;
+  user_id: string;
+  name: string;
+  photo: string;
+  image_url: string;
+  caption?: string;
+  timestamp: string;
 }
 
 export interface ChatPreview {

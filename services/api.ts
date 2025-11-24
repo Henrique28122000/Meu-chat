@@ -1,4 +1,5 @@
-import { User, Message, ApiResponse } from '../types';
+
+import { User, Message, ApiResponse, Status } from '../types';
 
 const BASE_URL = 'https://paulohenriquedev.site/api';
 
@@ -15,16 +16,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const api = {
   // Auth & Users
   registerUser: async (name: string, email: string, uid: string, photo: string) => {
-    // Mapping Firebase data to PHP endpoint expected format
     return request<ApiResponse<any>>('registerUser.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password: uid, photo, uid }), // Sending UID as password/identifier
+      body: JSON.stringify({ name, email, password: uid, photo, uid }),
     });
   },
 
   getUser: async (user_id: string) => {
-    return request<User>(`getUser.php?user_id=${user_id}`);
+    // Check if response is array or object to be safe
+    const data = await request<User | User[]>(`getUser.php?user_id=${user_id}`);
+    return Array.isArray(data) ? data[0] : data;
   },
 
   searchUsers: async (query: string) => {
@@ -41,7 +43,6 @@ export const api = {
 
   // Messages
   getChats: async (user_id: string) => {
-    // Note: Endpoint provided was getMessages.php?user_id=123 for "all conversations"
     return request<any[]>(`getMessages.php?user_id=${user_id}`);
   },
 
@@ -54,6 +55,26 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender_id, receiver_id, content, type }),
+    });
+  },
+
+  // Status
+  getStatuses: async () => {
+    // Ensure you create getStatuses.php on server
+    try {
+        return await request<Status[]>('getStatuses.php');
+    } catch (e) {
+        console.warn("Status API not found or error", e);
+        return [];
+    }
+  },
+
+  postStatus: async (user_id: string, image_url: string, caption: string) => {
+     // Ensure you create postStatus.php on server
+     return request<ApiResponse<any>>('postStatus.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, image_url, caption }),
     });
   },
 

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import ChatListPage from './pages/ChatListPage';
 import ChatRoomPage from './pages/ChatRoomPage';
@@ -18,16 +19,31 @@ const App: React.FC = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem('ph_chat_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      
+      // Fetch latest user data from DB to ensure photo/name is up to date
+      api.getUser(parsedUser.id).then((latestUser) => {
+          // If valid user returned
+          if(latestUser && (latestUser as User).id) {
+              const u = latestUser as User;
+              // Only update state if something changed to avoid loop
+              if(u.photo !== parsedUser.photo || u.name !== parsedUser.name) {
+                  const updated = { ...parsedUser, photo: u.photo, name: u.name };
+                  setUser(updated);
+                  localStorage.setItem('ph_chat_user', JSON.stringify(updated));
+              }
+          }
+      }).catch(err => console.log("Background user fetch failed", err));
+
     }
     setLoading(false);
   }, []);
 
-  // Save session
+  // Save session & Notifications
   useEffect(() => {
     if (user) {
       localStorage.setItem('ph_chat_user', JSON.stringify(user));
-      // Setup Notifications
       setupNotifications(user.uid);
     } else {
       localStorage.removeItem('ph_chat_user');
@@ -38,21 +54,20 @@ const App: React.FC = () => {
     try {
       const msg = await messaging();
       if (msg) {
-        // VAPID key usually needed for web. If you have one, add it here: { vapidKey: 'YOUR_KEY' }
         const token = await getToken(msg); 
         if (token) {
           await api.saveFcmToken(uid, token);
         }
       }
     } catch (e) {
-      console.log('Notification permission not granted or failed.', e);
+      console.log('Notificações não permitidas', e);
     }
   };
 
-  if (loading) return <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  if (loading) return <div className="flex h-full items-center justify-center bg-[#e5ddd5]"><div className="animate-spin rounded-full h-12 w-12 border-4 border-[#008069] border-t-transparent"></div></div>;
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-gray-100">
         <Routes>
             <Route 
                 path="/login" 
