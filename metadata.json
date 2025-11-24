@@ -1,0 +1,7 @@
+{
+  "name": "PH Chat App",
+  "description": "A full-featured messaging application with Google Auth, Real-time Chat, Audio Messaging, and Profile Management connected to a custom PHP API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
