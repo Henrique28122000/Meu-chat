@@ -30,53 +30,56 @@ const UserSearchPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <header className="p-4 border-b flex items-center bg-white sticky top-0">
-        <Link to="/" className="mr-4 text-gray-600">
+      <header className="flex-none p-3 border-b bg-white sticky top-0 flex items-center gap-2 h-16">
+        <Link to="/" className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
            <ArrowLeft size={24} />
         </Link>
-        <form onSubmit={handleSearch} className="flex-1 relative">
+        <form onSubmit={handleSearch} className="flex-1 relative flex items-center">
             <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name or email..."
-                className="w-full bg-gray-100 rounded-lg py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Search name..."
+                className="w-full bg-gray-100 rounded-full py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
                 autoFocus
             />
-            <button type="submit" className="absolute right-3 top-2.5 text-gray-500">
+            <button type="submit" className="absolute right-3 text-gray-500 p-1">
                 <Search size={18} />
             </button>
         </form>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-2">
         {searching ? (
-            <div className="text-center py-4">Searching...</div>
+            <div className="text-center py-8 text-gray-500">Searching...</div>
         ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-2">
                 {results.map(user => (
-                    <li key={user.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
+                    <li key={user.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl border border-gray-50 shadow-sm">
+                        <div className="flex items-center space-x-3 overflow-hidden">
                             <img 
                                 src={user.photo || "https://picsum.photos/50/50"} 
                                 alt={user.name} 
-                                className="w-12 h-12 rounded-full object-cover bg-gray-200"
+                                className="w-10 h-10 rounded-full object-cover bg-gray-200 flex-shrink-0"
                             />
-                            <div>
-                                <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                                <p className="text-sm text-gray-500">{user.email}</p>
+                            <div className="min-w-0">
+                                <h3 className="font-semibold text-gray-900 truncate text-sm">{user.name}</h3>
+                                <p className="text-xs text-gray-500 truncate">{user.email}</p>
                             </div>
                         </div>
                         <Link 
                             to={`/chat/${user.id}`} 
-                            className="bg-blue-100 text-blue-600 px-4 py-1.5 rounded-full text-sm font-medium hover:bg-blue-200"
+                            className="bg-blue-600 text-white px-3 py-1.5 rounded-full text-xs font-medium hover:bg-blue-700 flex-shrink-0"
                         >
-                            Message
+                            Chat
                         </Link>
                     </li>
                 ))}
                 {results.length === 0 && query && !searching && (
-                    <div className="text-center text-gray-500 mt-10">No users found.</div>
+                    <div className="text-center text-gray-400 mt-10">
+                        <Search size={48} className="mx-auto mb-2 opacity-20"/>
+                        <p>No users found.</p>
+                    </div>
                 )}
             </ul>
         )}

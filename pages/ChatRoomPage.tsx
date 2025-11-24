@@ -21,7 +21,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   useEffect(() => {
     if (partnerId) {
       api.getUser(partnerId).then(data => {
-          // Sometimes API returns array or object. Handle both.
           const user = Array.isArray(data) ? data[0] : data;
           setPartner(user);
       }).catch(err => console.error(err));
@@ -33,7 +32,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     if (!partnerId || !currentUser.id) return;
     try {
       const msgs = await api.getChatMessages(currentUser.id, partnerId);
-      // Sort by timestamp if API doesn't
       if (Array.isArray(msgs)) {
           const sorted = msgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           setMessages(sorted);
@@ -45,11 +43,10 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
 
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(loadMessages, 3000); // 3s polling
+    const interval = setInterval(loadMessages, 3000); 
     return () => clearInterval(interval);
   }, [partnerId, currentUser.id]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -70,17 +67,15 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
       is_sent_by_me: true
     };
 
-    // Optimistic Update
     setMessages(prev => [...prev, tempMsg]);
     setInputText('');
     setSending(true);
 
     try {
       await api.sendMessage(currentUser.id, partnerId, tempMsg.content, 'text');
-      loadMessages(); // Refresh to get real ID
+      loadMessages(); 
     } catch (error) {
       console.error("Send failed", error);
-      // Remove temp message or show error in UI
     } finally {
       setSending(false);
     }
@@ -89,13 +84,12 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const handleSendAudio = async (blob: Blob) => {
     if (!partnerId) return;
     
-    // Create optimistic audio message
     const tempUrl = URL.createObjectURL(blob);
     const tempMsg: Message = {
       id: 'temp-' + Date.now(),
       sender_id: currentUser.id,
       receiver_id: partnerId,
-      content: tempUrl, // Temporary local URL
+      content: tempUrl,
       type: 'audio',
       timestamp: new Date().toISOString(),
       is_sent_by_me: true
@@ -114,9 +108,9 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   if (!partnerId) return <div>Invalid Chat</div>;
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
       {/* Header */}
-      <header className="bg-white p-3 border-b flex items-center justify-between sticky top-0 z-10 shadow-sm">
+      <header className="flex-none bg-white p-3 border-b flex items-center justify-between shadow-sm h-16 z-20">
         <div className="flex items-center">
           <Link to="/" className="mr-3 text-gray-600 hover:bg-gray-100 p-2 rounded-full">
             <ArrowLeft size={20} />
@@ -127,10 +121,10 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                  <img 
                     src={partner.photo || "https://picsum.photos/40/40"} 
                     alt={partner.name} 
-                    className="w-10 h-10 rounded-full bg-gray-200 mr-3 object-cover" 
+                    className="w-10 h-10 rounded-full bg-gray-200 mr-3 object-cover border" 
                  />
-                 <div>
-                   <h2 className="font-semibold text-sm md:text-base text-gray-800">{partner.name}</h2>
+                 <div className="overflow-hidden">
+                   <h2 className="font-semibold text-sm md:text-base text-gray-800 truncate max-w-[120px]">{partner.name}</h2>
                    <span className="text-xs text-green-500">Online</span>
                  </div>
               </>
@@ -139,24 +133,23 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
             )}
           </div>
         </div>
-        <div className="flex space-x-3 text-gray-600">
-           <Phone size={20} />
-           <Video size={20} />
-           <MoreVertical size={20} />
+        <div className="flex space-x-1 text-gray-600">
+           <button className="p-2 hover:bg-gray-100 rounded-full"><Phone size={20} /></button>
+           <button className="p-2 hover:bg-gray-100 rounded-full"><Video size={20} /></button>
         </div>
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" ref={scrollRef}>
         {messages.map((msg, idx) => {
-          const isMe = msg.sender_id === currentUser.id || msg.sender_id === currentUser.uid; // Check both ID formats
+          const isMe = msg.sender_id === currentUser.id || msg.sender_id === currentUser.uid;
           return (
             <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div 
-                className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
+                className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm break-words ${
                   isMe 
                     ? 'bg-blue-600 text-white rounded-br-none' 
-                    : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
+                    : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'
                 }`}
               >
                 {msg.type === 'audio' ? (
@@ -165,12 +158,11 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                      <audio 
                         src={msg.content.startsWith('http') || msg.content.startsWith('blob') ? msg.content : `https://paulohenriquedev.site/${msg.content}`} 
                         controls 
-                        className="h-8 w-48"
-                        // Tailwind doesn't style native audio perfectly, custom CSS helps or just leave native
+                        className="h-8 w-48 max-w-full"
                      />
                   </div>
                 ) : (
-                  <p className="text-sm md:text-base break-words">{msg.content}</p>
+                  <p className="text-sm md:text-base">{msg.content}</p>
                 )}
                 <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -181,8 +173,8 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
         })}
       </div>
 
-      {/* Input Area */}
-      <div className="p-3 bg-white border-t">
+      {/* Input Area - Fixed at bottom */}
+      <div className="flex-none p-2 bg-white border-t safe-area-bottom">
         <div className="flex items-center space-x-2">
             {inputText.length === 0 ? (
                 <AudioRecorder onSend={handleSendAudio} />
@@ -193,16 +185,16 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                     type="text"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-shadow"
+                    placeholder="Message..."
+                    className="flex-1 border border-gray-300 bg-gray-100 rounded-full px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all text-sm"
                 />
                 {inputText.length > 0 && (
                     <button 
                     type="submit" 
                     disabled={sending}
-                    className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50"
+                    className="bg-blue-600 text-white p-2.5 rounded-full hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
                     >
-                    <ArrowLeft className="rotate-180" size={20} /> {/* Send Icon equivalent */}
+                    <ArrowLeft className="rotate-180" size={20} />
                     </button>
                 )}
             </form>
