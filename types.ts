@@ -31,5 +31,6 @@ export interface ApiResponse<T> {
   message?: string;
   data?: T;
   file_url?: string;
+  file_path?: string;
   user_id?: string;
 }

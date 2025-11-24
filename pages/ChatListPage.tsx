@@ -63,7 +63,9 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                 const partnerId = chat.sender_id === currentUser.id ? chat.receiver_id : chat.sender_id;
                 const name = chat.partner_name || chat.name || "Unknown User";
                 const photo = chat.partner_photo || chat.photo || "https://picsum.photos/50/50";
-                const message = chat.content || (chat.type === 'audio' ? '🎤 Audio message' : '');
+                
+                // Fix: Correctly check message type for preview
+                const message = chat.type === 'audio' ? '🎤 Audio message' : chat.content;
                 
                 return (
                   <li key={index}>

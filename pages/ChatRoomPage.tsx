@@ -84,6 +84,7 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const handleSendAudio = async (blob: Blob) => {
     if (!partnerId) return;
     
+    // Optimistic UI update with Blob URL
     const tempUrl = URL.createObjectURL(blob);
     const tempMsg: Message = {
       id: 'temp-' + Date.now(),
@@ -98,11 +99,26 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      await api.uploadAudio(blob, currentUser.id, partnerId);
-      loadMessages();
+      // 1. Upload audio file
+      const response = await api.uploadAudio(blob, currentUser.id, partnerId);
+      
+      // 2. If upload successful, send message with file path
+      if (response.status === 'success' && response.file_path) {
+        await api.sendMessage(currentUser.id, partnerId, response.file_path, 'audio');
+        loadMessages(); // Refresh to get server ID and timestamp
+      } else {
+        console.error("Audio upload response invalid:", response);
+      }
     } catch (error) {
       console.error("Audio upload failed", error);
     }
+  };
+
+  const getAudioSrc = (path: string) => {
+    if (path.startsWith('blob:')) return path;
+    if (path.startsWith('http')) return path;
+    // Assuming uploads are inside /api/uploads/..., and BASE_URL points to /api
+    return `https://paulohenriquedev.site/api/${path}`;
   };
 
   if (!partnerId) return <div>Invalid Chat</div>;
@@ -156,7 +172,7 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                   <div className="flex items-center space-x-2">
                      <span className="text-xs">🎤</span>
                      <audio 
-                        src={msg.content.startsWith('http') || msg.content.startsWith('blob') ? msg.content : `https://paulohenriquedev.site/${msg.content}`} 
+                        src={getAudioSrc(msg.content)} 
                         controls 
                         className="h-8 w-48 max-w-full"
                      />
