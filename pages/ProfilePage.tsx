@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
@@ -54,59 +53,61 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onLogout }) => {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <header className="p-4 bg-[#008069] text-white flex items-center shadow-md sticky top-0 z-10">
-        <Link to="/" className="mr-4 hover:bg-[#006e5a] p-1 rounded-full">
+      <header className="p-4 pt-6 gradient-bg text-white flex items-center shadow-lg sticky top-0 z-10 rounded-b-3xl">
+        <Link to="/" className="mr-4 hover:bg-white/20 p-2 rounded-full transition">
            <ArrowLeft size={24} />
         </Link>
-        <h1 className="text-xl font-bold">Perfil</h1>
+        <h1 className="text-xl font-bold">Meu Perfil</h1>
       </header>
 
       <div className="p-6 flex flex-col items-center overflow-y-auto">
         <div className="relative mb-8 mt-4">
-            <img 
-                src={photoPreview || "https://picsum.photos/150/150"} 
-                alt="Profile" 
-                className="w-40 h-40 rounded-full object-cover border-4 border-gray-100 shadow-lg bg-gray-200"
-            />
-            <label className="absolute bottom-1 right-1 bg-[#008069] text-white p-3 rounded-full cursor-pointer hover:bg-[#006e5a] shadow-lg transition-transform hover:scale-105">
-                <Camera size={22} />
+            <div className="p-1 rounded-full border-4 border-teal-100 shadow-xl">
+                <img 
+                    src={photoPreview || "https://picsum.photos/150/150"} 
+                    alt="Profile" 
+                    className="w-36 h-36 rounded-full object-cover"
+                />
+            </div>
+            <label className="absolute bottom-1 right-1 bg-teal-600 text-white p-3 rounded-2xl cursor-pointer hover:bg-teal-700 shadow-lg transition-transform hover:scale-110 active:scale-95 border-4 border-white">
+                <Camera size={20} />
                 <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
             </label>
         </div>
 
         <div className="w-full max-w-sm space-y-6">
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <label className="block text-xs font-bold text-[#008069] mb-1 uppercase tracking-wide">Nome</label>
+            <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 shadow-sm">
+                <label className="block text-xs font-bold text-teal-600 mb-2 uppercase tracking-wide">Nome de Exibição</label>
                 <input 
                     type="text" 
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-transparent border-b border-gray-300 py-1 focus:border-[#008069] focus:outline-none text-lg text-gray-800"
+                    className="w-full bg-transparent border-b-2 border-gray-200 py-1 focus:border-teal-500 focus:outline-none text-lg text-gray-800 transition-colors font-medium"
                 />
-                <p className="text-xs text-gray-400 mt-2">Esse não é seu nome de usuário ou PIN. Esse nome será visível para seus contatos.</p>
+                <p className="text-xs text-gray-400 mt-3">Esse nome será visível para seus contatos nas conversas.</p>
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <label className="block text-xs font-bold text-[#008069] mb-1 uppercase tracking-wide">Email</label>
+            <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 shadow-sm opacity-80">
+                <label className="block text-xs font-bold text-teal-600 mb-2 uppercase tracking-wide">Email</label>
                 <input 
                     type="email" 
                     value={user.email} 
                     disabled 
-                    className="w-full bg-transparent border-b border-transparent py-1 text-lg text-gray-500 cursor-not-allowed"
+                    className="w-full bg-transparent border-b-2 border-transparent py-1 text-lg text-gray-500 cursor-not-allowed font-medium"
                 />
             </div>
 
             <button 
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full bg-[#008069] text-white font-bold py-3.5 rounded-full hover:bg-[#006e5a] transition shadow-md flex justify-center items-center active:scale-95"
+                className="w-full bg-teal-600 text-white font-bold py-4 rounded-2xl hover:bg-teal-700 transition shadow-lg shadow-teal-500/20 flex justify-center items-center active:scale-95"
             >
                 {saving ? 'Salvando...' : <><Save size={20} className="mr-2" /> Salvar Alterações</>}
             </button>
 
             <button 
                 onClick={handleLogout}
-                className="w-full border border-red-200 text-red-600 font-bold py-3.5 rounded-full hover:bg-red-50 transition flex justify-center items-center mt-8"
+                className="w-full border-2 border-red-100 text-red-500 font-bold py-4 rounded-2xl hover:bg-red-50 transition flex justify-center items-center mt-4"
             >
                 <LogOut size={20} className="mr-2" /> Sair da conta
             </button>

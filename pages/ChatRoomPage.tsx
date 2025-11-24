@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Video } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Paperclip } from 'lucide-react';
 import { api } from '../services/api';
 import { User, Message } from '../types';
 import AudioRecorder from '../components/AudioRecorder';
@@ -10,6 +9,9 @@ import AudioMessage from '../components/AudioMessage';
 interface ChatRoomPageProps {
   currentUser: User;
 }
+
+// Simple Pop Sound URL (Short Base64 or Data URI can be used, using a reliable CDN for a pop sound)
+const SENT_SOUND_URL = "https://cdn.pixabay.com/download/audio/2022/03/15/audio_2239634044.mp3?filename=pop-39222.mp3"; 
 
 const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const { id: partnerId } = useParams<{ id: string }>();
@@ -54,9 +56,19 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     }
   }, [messages]);
 
+  const playSentSound = () => {
+    try {
+        const audio = new Audio(SENT_SOUND_URL);
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log("Audio play blocked", e));
+    } catch(e) {}
+  };
+
   const handleSendText = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !partnerId) return;
+
+    playSentSound();
 
     const tempMsg: Message = {
       id: 'temp-' + Date.now(),
@@ -85,6 +97,8 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const handleSendAudio = async (blob: Blob) => {
     if (!partnerId) return;
     
+    playSentSound();
+
     // Optimistic UI
     const tempUrl = URL.createObjectURL(blob);
     const tempMsg: Message = {
@@ -101,7 +115,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
 
     try {
       const response = await api.uploadAudio(blob, currentUser.id, partnerId);
-      
       if (response.status === 'success' && response.file_path) {
         await api.sendMessage(currentUser.id, partnerId, response.file_path, 'audio');
         loadMessages(); 
@@ -124,64 +137,70 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   if (!partnerId) return <div>Chat Inválido</div>;
 
   return (
-    <div className="flex flex-col h-full bg-[#e5ddd5] overflow-hidden relative">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-          backgroundImage: `url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")`,
+    <div className="flex flex-col h-full bg-slate-100 overflow-hidden relative">
+      {/* Background Pattern - Softer */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+          backgroundImage: `url("https://www.transparenttextures.com/patterns/cubes.png")`,
           backgroundRepeat: 'repeat'
       }}></div>
 
-      {/* Header */}
-      <header className="flex-none bg-[#008069] text-white p-2 border-b flex items-center justify-between shadow-md h-16 z-20">
+      {/* Modern Header */}
+      <header className="flex-none bg-white/80 backdrop-blur-md text-gray-800 p-2 border-b border-gray-100 flex items-center justify-between shadow-sm h-20 z-20 rounded-b-3xl">
         <div className="flex items-center">
-          <Link to="/" className="mr-1 hover:bg-[#006e5a] p-2 rounded-full">
-            <ArrowLeft size={24} />
+          <Link to="/" className="mr-2 hover:bg-gray-100 p-2.5 rounded-full text-gray-600 transition">
+            <ArrowLeft size={22} />
           </Link>
           <div className="flex items-center cursor-pointer">
             {partner ? (
-              <>
-                 <img 
-                    src={partner.photo || "https://picsum.photos/40/40"} 
-                    alt={partner.name} 
-                    className="w-10 h-10 rounded-full bg-gray-300 mr-2 object-cover border border-white/30" 
-                 />
-                 <div className="overflow-hidden">
-                   <h2 className="font-semibold text-base truncate max-w-[140px] leading-tight">{partner.name}</h2>
-                   <span className="text-xs text-white/80">Online</span>
+              <div className="flex items-center">
+                 <div className="relative">
+                    <img 
+                        src={partner.photo || "https://picsum.photos/40/40"} 
+                        alt={partner.name} 
+                        className="w-11 h-11 rounded-full bg-gray-200 object-cover border-2 border-white shadow-sm" 
+                    />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                  </div>
-              </>
+                 <div className="ml-3">
+                   <h2 className="font-bold text-gray-800 text-base leading-tight">{partner.name}</h2>
+                   <span className="text-xs text-teal-600 font-medium">Online</span>
+                 </div>
+              </div>
             ) : (
-              <div className="w-32 h-10 bg-white/20 animate-pulse rounded"></div>
+              <div className="w-32 h-10 bg-gray-200 animate-pulse rounded-lg"></div>
             )}
           </div>
         </div>
-        <div className="flex space-x-1">
-           <button onClick={handleCall} className="p-2 hover:bg-[#006e5a] rounded-full"><Video size={22} /></button>
-           <button onClick={handleCall} className="p-2 hover:bg-[#006e5a] rounded-full"><Phone size={20} /></button>
+        <div className="flex space-x-2 text-teal-600 pr-2">
+           <button onClick={handleCall} className="p-2.5 bg-teal-50 hover:bg-teal-100 rounded-full transition"><Phone size={20} /></button>
+           <button onClick={handleCall} className="p-2.5 bg-teal-50 hover:bg-teal-100 rounded-full transition"><Video size={20} /></button>
         </div>
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 relative z-10" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10" ref={scrollRef}>
         {messages.map((msg, idx) => {
           const isMe = String(msg.sender_id) === String(currentUser.id) || String(msg.sender_id) === String(currentUser.uid);
+          const nextIsMe = messages[idx + 1] && (String(messages[idx + 1].sender_id) === String(currentUser.id) || String(messages[idx + 1].sender_id) === String(currentUser.uid)) === isMe;
+          
           return (
-            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group animate-in slide-in-from-bottom-2 duration-300`}>
               <div 
-                className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm relative ${
+                className={`max-w-[85%] px-4 py-3 shadow-sm relative transition-all ${
                   isMe 
-                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none' 
-                    : 'bg-white text-gray-800 rounded-tl-none'
-                }`}
+                    ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl rounded-tr-sm' 
+                    : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-100'
+                } ${!nextIsMe ? 'mb-2' : ''}`}
               >
                 {msg.type === 'audio' ? (
                   <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
                 ) : (
-                  <p className="text-[15px] leading-relaxed break-words pb-2">{msg.content}</p>
+                  <p className="text-[15px] leading-relaxed break-words pb-1 font-normal">{msg.content}</p>
                 )}
                 
-                <div className={`text-[10px] text-right absolute bottom-1 right-2 ${isMe ? 'text-gray-500' : 'text-gray-400'}`}>
+                <div className={`text-[10px] text-right mt-1 opacity-70 flex items-center justify-end gap-1 font-medium`}>
                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                   {isMe && <span className="text-[10px]">✓</span>}
                 </div>
               </div>
             </div>
@@ -190,34 +209,33 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
       </div>
 
       {/* Input Area */}
-      <div className="flex-none p-2 bg-transparent z-20 pb-2">
+      <div className="flex-none p-3 bg-white z-20 pb-4 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
         <div className="flex items-center space-x-2">
             
-            <div className="flex-1 bg-white rounded-full flex items-center shadow-md px-2 py-1">
+            <button className="p-2 text-gray-400 hover:text-teal-600 transition"><Paperclip size={22} /></button>
+
+            <div className="flex-1 bg-gray-100 rounded-[2rem] flex items-center px-4 py-1.5 focus-within:ring-2 focus-within:ring-teal-100 focus-within:bg-white transition-all duration-300">
                  <form onSubmit={handleSendText} className="flex-1 flex items-center">
                     <input
                         type="text"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Mensagem"
-                        className="flex-1 bg-transparent px-3 py-2.5 focus:outline-none text-base"
+                        placeholder="Digite sua mensagem..."
+                        className="flex-1 bg-transparent py-2.5 focus:outline-none text-gray-700 placeholder-gray-400"
                     />
                  </form>
-                 <div className="flex items-center space-x-2 pr-1">
-                     {/* Anexo seria aqui */}
-                 </div>
             </div>
 
             {inputText.length > 0 ? (
                  <button 
                     onClick={handleSendText}
                     disabled={sending}
-                    className="bg-[#008069] text-white p-3 rounded-full shadow-md hover:bg-[#006e5a] transition-transform active:scale-95"
+                    className="bg-teal-600 text-white p-3.5 rounded-full shadow-lg shadow-teal-500/30 hover:bg-teal-700 transition-all active:scale-95"
                  >
                     <ArrowLeft className="rotate-180" size={24} />
                  </button>
             ) : (
-                <div className="shadow-md rounded-full bg-[#008069]">
+                <div className="shadow-lg shadow-teal-500/20 rounded-full bg-teal-600">
                    <AudioRecorder onSend={handleSendAudio} />
                 </div>
             )}

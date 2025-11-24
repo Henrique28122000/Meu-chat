@@ -1,11 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
     <title>PH Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      body {
+        font-family: 'Outfit', sans-serif;
+      }
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
           display: none;
@@ -14,6 +18,15 @@
       .no-scrollbar {
           -ms-overflow-style: none;  /* IE and Edge */
           scrollbar-width: none;  /* Firefox */
+      }
+      
+      .glass-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+      }
+      
+      .gradient-bg {
+        background: linear-gradient(135deg, #10b981 0%, #0f766e 100%);
       }
     </style>
   <script type="importmap">
@@ -29,8 +42,8 @@
 }
 </script>
 </head>
-  <body class="bg-gray-100 text-gray-900 h-[100dvh] w-screen overflow-hidden">
-    <div id="root" class="h-full w-full max-w-md mx-auto bg-white shadow-xl relative flex flex-col"></div>
+  <body class="bg-gray-50 text-gray-900 h-[100dvh] w-screen overflow-hidden flex justify-center">
+    <div id="root" class="h-full w-full max-w-md bg-white shadow-2xl relative flex flex-col sm:rounded-[2rem] sm:my-4 sm:h-[calc(100%-2rem)] overflow-hidden border border-gray-100"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

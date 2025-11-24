@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
@@ -37,8 +36,8 @@ const UserSearchPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <header className="flex-none p-3 border-b bg-white sticky top-0 flex items-center gap-2 h-16 shadow-sm z-10">
-        <Link to="/" className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
+      <header className="flex-none p-4 gradient-bg sticky top-0 flex items-center gap-3 h-20 shadow-md z-10 rounded-b-3xl">
+        <Link to="/" className="p-2 text-white hover:bg-white/20 rounded-full transition">
            <ArrowLeft size={24} />
         </Link>
         <div className="flex-1 relative flex items-center">
@@ -46,49 +45,51 @@ const UserSearchPage: React.FC = () => {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar nome..."
-                className="w-full bg-gray-100 rounded-lg py-2 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-[#008069] text-base"
+                placeholder="Buscar pessoas..."
+                className="w-full bg-white/10 text-white placeholder-white/60 rounded-2xl py-2.5 pl-4 pr-10 focus:outline-none focus:bg-white/20 focus:ring-2 focus:ring-white/30 text-base backdrop-blur-sm transition-all"
                 autoFocus
             />
             {searching ? (
-                 <div className="absolute right-3 w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                 <div className="absolute right-3 w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
             ) : (
-                 <Search size={18} className="absolute right-3 text-gray-500" />
+                 <Search size={18} className="absolute right-3 text-white/60" />
             )}
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-2">
-            <ul className="space-y-1">
+      <div className="flex-1 overflow-y-auto p-4">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4 pl-2">Resultados</h2>
+            <ul className="space-y-3">
                 {results.map(user => (
-                    <li key={user.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg active:bg-gray-100">
+                    <li key={user.id} className="flex items-center justify-between p-3.5 bg-gray-50 hover:bg-white border border-gray-100 rounded-2xl shadow-sm transition-all">
                         <div className="flex items-center space-x-3 overflow-hidden">
                             <img 
                                 src={user.photo || "https://picsum.photos/50/50"} 
                                 alt={user.name} 
-                                className="w-12 h-12 rounded-full object-cover bg-gray-200 flex-shrink-0 border border-gray-100"
+                                className="w-12 h-12 rounded-xl object-cover bg-gray-200 flex-shrink-0"
                             />
                             <div className="min-w-0">
-                                <h3 className="font-semibold text-gray-900 truncate text-base">{user.name}</h3>
+                                <h3 className="font-bold text-gray-800 truncate text-base">{user.name}</h3>
                                 <p className="text-sm text-gray-500 truncate">{user.email}</p>
                             </div>
                         </div>
                         <Link 
                             to={`/chat/${user.id}`} 
-                            className="text-[#008069] font-semibold text-sm px-3 py-2 rounded-full hover:bg-green-50"
+                            className="text-teal-600 font-bold text-sm px-4 py-2 bg-teal-50 rounded-xl hover:bg-teal-100 transition"
                         >
                             Conversar
                         </Link>
                     </li>
                 ))}
                 {results.length === 0 && query && !searching && (
-                    <div className="text-center text-gray-400 mt-10">
+                    <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
+                        <Search size={48} className="mb-4 opacity-20" />
                         <p>Nenhum usuário encontrado.</p>
                     </div>
                 )}
                 {results.length === 0 && !query && (
-                    <div className="text-center text-gray-400 mt-10">
-                        <p className="text-sm">Digite para buscar novos contatos</p>
+                    <div className="text-center text-gray-400 mt-20">
+                         <p className="text-sm">Digite o nome ou email acima.</p>
                     </div>
                 )}
             </ul>

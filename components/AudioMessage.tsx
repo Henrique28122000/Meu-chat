@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
 
@@ -9,9 +8,12 @@ interface AudioMessageProps {
 
 const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Generate random heights for fake waveform visualization
+  const [bars] = useState(() => Array.from({ length: 24 }, () => Math.floor(Math.random() * 60) + 20));
 
   const togglePlay = () => {
     const audio = audioRef.current;
@@ -28,8 +30,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
   const onTimeUpdate = () => {
     const audio = audioRef.current;
     if (audio) {
-      const prog = (audio.currentTime / audio.duration) * 100;
-      setProgress(prog || 0);
+      setCurrentTime(audio.currentTime);
     }
   };
 
@@ -42,7 +43,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
 
   const onEnded = () => {
     setIsPlaying(false);
-    setProgress(0);
+    setCurrentTime(0);
   };
 
   const formatTime = (time: number) => {
@@ -53,35 +54,45 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
   };
 
   return (
-    <div className="flex items-center space-x-3 min-w-[200px] py-1">
+    <div className={`flex items-center gap-3 p-1 min-w-[220px] max-w-[280px]`}>
+      {/* Play/Pause Button */}
       <button 
         onClick={togglePlay}
-        className={`p-2 rounded-full transition-colors flex-shrink-0 ${
-            isMe ? 'text-blue-600 bg-white' : 'text-gray-600 bg-gray-200'
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-95 flex-shrink-0 ${
+            isMe ? 'bg-white text-teal-600' : 'bg-teal-500 text-white'
         }`}
       >
-        {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
+        {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
       </button>
 
       <div className="flex-1 flex flex-col justify-center">
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={progress}
-          onChange={(e) => {
-             const audio = audioRef.current;
-             if(audio) {
-                const newTime = (Number(e.target.value) / 100) * audio.duration;
-                audio.currentTime = newTime;
-                setProgress(Number(e.target.value));
-             }
-          }}
-          className="w-full h-1 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-gray-500"
-          style={{ accentColor: isMe ? 'white' : '#4B5563' }}
-        />
-        <div className={`flex justify-between text-[10px] mt-1 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
-            <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
+        {/* Fake Waveform Visualizer */}
+        <div className="h-8 flex items-center gap-[2px] w-full mb-1 opacity-90">
+             {bars.map((height, i) => {
+                 // Calculate if this bar has been played
+                 const progress = (currentTime / duration) || 0;
+                 const isPlayed = (i / bars.length) < progress;
+                 
+                 return (
+                    <div 
+                        key={i}
+                        className={`w-1.5 rounded-full transition-all duration-200 ${
+                            isMe 
+                                ? (isPlayed ? 'bg-teal-800' : 'bg-teal-200/60') 
+                                : (isPlayed ? 'bg-teal-500' : 'bg-gray-300')
+                        } ${isPlaying ? 'animate-pulse' : ''}`}
+                        style={{ 
+                            height: isPlaying ? `${Math.max(height * Math.random(), 20)}%` : `${height}%`,
+                            animationDelay: `${i * 0.05}s`
+                        }}
+                    ></div>
+                 )
+             })}
+        </div>
+
+        {/* Timer */}
+        <div className={`flex justify-between text-[10px] font-medium px-0.5 ${isMe ? 'text-teal-900/70' : 'text-gray-500'}`}>
+            <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
         </div>
       </div>
