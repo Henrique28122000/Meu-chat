@@ -99,10 +99,24 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                     const name = chat.partner_name || "Usuário";
                     const photo = chat.partner_photo || "https://picsum.photos/50/50";
                     
-                    let preview = chat.content;
-                    if(chat.type === 'audio') preview = '🎤 Áudio';
-                    if(chat.content.includes('uploads/videos')) preview = '📹 Vídeo';
-                    if(chat.content.includes('uploads/photos')) preview = '📷 Foto';
+                    // Lógica de Preview Corrigida
+                    let preview = "Nada por aqui...";
+                    
+                    if (chat.content) {
+                        preview = chat.content;
+                        // Se o backend enviar URLs completas, tentamos identificar
+                        if (preview.includes('uploads/audios') || chat.type === 'audio') preview = '🎤 Mensagem de áudio';
+                        else if (preview.includes('uploads/photos')) preview = '📷 Foto';
+                        else if (preview.includes('uploads/videos')) preview = '📹 Vídeo';
+                    } else if (chat.type === 'audio') {
+                        preview = '🎤 Mensagem de áudio';
+                    }
+
+                    // Se a última mensagem foi apagada (o PHP deve retornar NULL ou string vazia no content se deletado, ou tratar aqui)
+                    // Assumindo que o PHP getMessages retorna o content original mesmo deletado, não temos flag lá. 
+                    // O ideal é o PHP retornar "Mensagem apagada" ou uma flag. 
+                    // Como paliativo, verificamos se está vazio.
+                    if (!chat.content && !chat.type) preview = '🚫 Mensagem apagada';
 
                     return (
                     <li key={index}>
@@ -111,7 +125,7 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                             <img 
                             src={photo} 
                             alt={name} 
-                            className="w-12 h-12 rounded-full object-cover mr-4"
+                            className="w-12 h-12 rounded-full object-cover mr-4 bg-gray-200"
                             />
                         </div>
                         <div className="flex-1 min-w-0 border-b border-gray-100 pb-3">
@@ -155,7 +169,7 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                       ) : (
                           notifications.map((notif, i) => (
                               <div key={i} className="flex items-center gap-3 p-3 border-b border-gray-100">
-                                  <img src={notif.photo} className="w-10 h-10 rounded-full" />
+                                  <img src={notif.photo || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full bg-gray-200" />
                                   <div className="text-sm">
                                       <p className="text-gray-800"><span className="font-bold">{notif.name}</span> {notif.content}</p>
                                       <span className="text-xs text-gray-400">{notif.timestamp ? formatTimeSP(notif.timestamp) : 'Hoje'}</span>

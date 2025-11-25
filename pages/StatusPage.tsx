@@ -75,31 +75,38 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
   // --- POSTING LOGIC ---
   const handlePost = async () => {
-      if(!file) return;
+      if(type !== 'text' && !file) return;
+      if(type === 'text' && !caption.trim()) return;
+
       setUploading(true);
       try {
           let url = '';
-          if(type === 'image') {
-              const res = await api.uploadPhoto(file as File, currentUser.id);
-              if(res.file_url) url = res.file_url;
-          } else if (type === 'video') {
-              const res = await api.uploadVideo(file as File, currentUser.id);
-              if(res.file_url) url = res.file_url;
-          } else if (type === 'audio') {
-              const res = await api.uploadAudio(file as Blob, currentUser.id);
-              if(res.file_path) url = `https://paulohenriquedev.site/api/${res.file_path}`;
+          // Upload logic for media
+          if (file) {
+            if(type === 'image') {
+                const res = await api.uploadPhoto(file as File, currentUser.id);
+                if(res.file_url) url = res.file_url;
+            } else if (type === 'video') {
+                const res = await api.uploadVideo(file as File, currentUser.id);
+                if(res.file_url) url = res.file_url;
+            } else if (type === 'audio') {
+                const res = await api.uploadAudio(file as Blob, currentUser.id);
+                if(res.file_path) url = `https://paulohenriquedev.site/api/${res.file_path}`;
+            }
           }
 
-          if(url) {
+          // If text only, URL stays empty. If media, URL must exist.
+          if(type === 'text' || url) {
               await api.postStatus(currentUser.id, url, type, caption);
               await fetchStatuses(); // Reload list
               setShowCreator(false);
               setFile(null); setPreview(null); setCaption('');
           } else {
-              alert("Falha no upload. Tente novamente.");
+              alert("Erro: Falha no upload da mídia.");
           }
       } catch(e) {
           alert("Erro ao postar status");
+          console.error(e);
       } finally {
           setUploading(false);
       }
@@ -177,7 +184,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
            // Previous User Group
            if(viewingGroupIndex !== null && viewingGroupIndex > 0) {
                setViewingGroupIndex(prev => (prev !== null ? prev - 1 : null));
-               setCurrentStatusIndex(0); // Should theoretically go to last status of prev user, but 0 is fine for MVP
+               setCurrentStatusIndex(0); 
            } else {
                closeViewer();
            }
@@ -197,25 +204,34 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       const status = group.statuses[currentStatusIndex];
 
       if(confirm("Excluir este status?")) {
+          // Call API
           await api.deleteStatus(status.id, currentUser.id);
           
-          // Remove from local state immediately
+          // Update Local State IMMUTABLY to force re-render
           const newGroups = [...groupedStatuses];
-          newGroups[viewingGroupIndex].statuses.splice(currentStatusIndex, 1);
+          const groupIndex = viewingGroupIndex; 
           
-          if(newGroups[viewingGroupIndex].statuses.length === 0) {
-              newGroups.splice(viewingGroupIndex, 1);
+          // Remove status from the group
+          newGroups[groupIndex] = {
+              ...newGroups[groupIndex],
+              statuses: newGroups[groupIndex].statuses.filter(s => s.id !== status.id)
+          };
+
+          // If group is empty, remove group
+          if(newGroups[groupIndex].statuses.length === 0) {
+              newGroups.splice(groupIndex, 1);
+              setGroupedStatuses(newGroups);
               closeViewer();
           } else {
-              // Verify index bounds
-              if(currentStatusIndex >= newGroups[viewingGroupIndex].statuses.length) {
-                  setCurrentStatusIndex(prev => prev - 1); 
-              } else {
-                  // Stay on same index (which is now the next item)
-                  setProgress(0);
-              }
+              setGroupedStatuses(newGroups);
+              // Navigate
+              if(currentStatusIndex >= newGroups[groupIndex].statuses.length) {
+                  // Was last item, go back or close if handled above
+                  setCurrentStatusIndex(Math.max(0, newGroups[groupIndex].statuses.length - 1));
+              } 
+              // If not last, index stays same (next item shifts into place)
+              setProgress(0);
           }
-          setGroupedStatuses(newGroups);
       }
   }
 
@@ -295,19 +311,19 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
               <div className="flex justify-between p-4 bg-black/50 absolute top-0 w-full z-10 text-white">
                   <button onClick={() => setShowCreator(false)}><X /></button>
                   <span className="font-bold">Novo Status</span>
-                  <button onClick={handlePost} disabled={!file || uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">
+                  <button onClick={handlePost} disabled={uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">
                       {uploading ? 'Enviando...' : 'Enviar'}
                   </button>
               </div>
               <div className="flex-1 bg-black flex flex-col items-center justify-center relative">
                   {!file ? (
                       <div className="flex gap-8">
-                          <label className="flex flex-col items-center text-white gap-2 cursor-pointer">
+                          <label onClick={() => setType('image')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
                               <div className="w-16 h-16 rounded-full border border-white flex items-center justify-center hover:bg-white/10 transition"><Camera size={32}/></div>
                               <span className="text-xs font-bold">Foto</span>
                               <input type="file" accept="image/*" className="hidden" onChange={e => handleFile(e, 'image')} />
                           </label>
-                          <label className="flex flex-col items-center text-white gap-2 cursor-pointer">
+                          <label onClick={() => setType('video')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
                               <div className="w-16 h-16 rounded-full border border-white flex items-center justify-center hover:bg-white/10 transition"><Video size={32}/></div>
                               <span className="text-xs font-bold">Vídeo</span>
                               <input type="file" accept="video/*" className="hidden" onChange={e => handleFile(e, 'video')} />
