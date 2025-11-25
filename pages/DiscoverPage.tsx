@@ -90,36 +90,33 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 pb-20">
-      <header className="px-6 py-5 bg-white shadow-sm z-10 sticky top-0 rounded-b-3xl">
-          <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-700">Descobrir</h1>
-          <p className="text-xs text-gray-400 font-medium">O que está acontecendo agora</p>
+    <div className="flex flex-col h-full bg-gray-100 pb-20">
+      <header className="px-5 py-4 bg-[#008069] text-white shadow-sm z-10 sticky top-0">
+          <h1 className="text-xl font-bold">Descobrir</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4">
            {loading ? (
-               <div className="flex justify-center p-10"><div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div></div>
+               <div className="flex justify-center p-10"><div className="w-8 h-8 border-4 border-[#008069] border-t-transparent rounded-full animate-spin"></div></div>
            ) : (
                posts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} />)
            )}
       </div>
 
-      {/* Floating Action Button */}
       <button 
         onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl shadow-xl shadow-teal-500/30 flex items-center justify-center hover:scale-105 transition-all z-40"
+        className="fixed bottom-24 right-6 w-14 h-14 bg-[#008069] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#006e5a] transition-all z-40"
       >
           <Plus size={28} />
       </button>
 
-      {/* Create Modal */}
       {showCreateModal && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="bg-white w-full max-w-md h-[80%] sm:h-auto sm:rounded-3xl rounded-t-3xl flex flex-col shadow-2xl animate-in slide-in-from-bottom-10">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in slide-in-from-bottom">
+              <div className="bg-white w-full max-w-md h-[80%] sm:h-auto sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl">
                   <div className="flex justify-between items-center p-4 border-b border-gray-100">
                       <button onClick={resetPost}><X size={24} className="text-gray-400" /></button>
                       <h3 className="font-bold text-gray-800">Nova Publicação</h3>
-                      <button onClick={handlePublish} disabled={uploading} className="font-bold text-teal-600 disabled:opacity-50">
+                      <button onClick={handlePublish} disabled={uploading} className="font-bold text-[#008069] disabled:opacity-50">
                           {uploading ? '...' : 'Postar'}
                       </button>
                   </div>
@@ -132,7 +129,6 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
                           onChange={e => setPostText(e.target.value)}
                       ></textarea>
 
-                      {/* Preview */}
                       {previewUrl && (
                           <div className="mt-4 relative rounded-xl overflow-hidden bg-black max-h-60 flex justify-center">
                               {postType === 'image' && <img src={previewUrl} className="max-h-60 object-contain" />}
@@ -143,21 +139,19 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
                       )}
                   </div>
 
-                  {/* Tools */}
-                  <div className="p-4 bg-gray-50 rounded-b-3xl">
-                      <p className="text-xs font-bold text-gray-400 uppercase mb-3">Adicionar à postagem</p>
+                  <div className="p-4 bg-gray-50 rounded-b-2xl">
                       <div className="flex justify-between items-center gap-2">
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-teal-50 transition">
-                              <ImageIcon className="text-blue-500 mb-1" />
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-100 transition">
+                              <ImageIcon className="text-[#008069] mb-1" />
                               <span className="text-[10px] font-bold text-gray-600">Foto</span>
                               <input type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'image')} />
                           </label>
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-teal-50 transition">
-                              <Video className="text-purple-500 mb-1" />
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-100 transition">
+                              <Video className="text-[#008069] mb-1" />
                               <span className="text-[10px] font-bold text-gray-600">Vídeo</span>
                               <input type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, 'video')} />
                           </label>
-                          <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-teal-50 transition relative overflow-hidden">
+                          <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-100 transition relative overflow-hidden">
                               <div className="scale-75 origin-center">
                                   <AudioRecorder onSend={handleAudioRecord} />
                               </div>

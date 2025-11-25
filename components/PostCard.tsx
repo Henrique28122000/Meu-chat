@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageSquare, Share2, Play, Pause } from 'lucide-react';
+import { Heart, MessageSquare, Share2, Play, Trash2 } from 'lucide-react';
 import { Post, User } from '../types';
 import { api } from '../services/api';
 import AudioMessage from './AudioMessage';
@@ -13,9 +13,7 @@ interface PostCardProps {
 const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const [liked, setLiked] = useState(post.liked_by_me);
   const [likesCount, setLikesCount] = useState(post.likes_count);
-  const [showComments, setShowComments] = useState(false);
-  
-  // Video Play State
+  const [deleted, setDeleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
@@ -27,8 +25,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
     try {
       await api.likePost(currentUser.id, post.id);
     } catch (e) {
-      console.error(e);
-      // Revert on error
       setLiked(!newLiked);
       setLikesCount(prev => !newLiked ? prev + 1 : prev - 1);
     }
@@ -42,30 +38,39 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       }
   }
 
+  const handleDelete = async () => {
+      if(confirm("Apagar postagem?")) {
+          await api.deletePost(post.id, currentUser.id);
+          setDeleted(true);
+      }
+  }
+
+  if(deleted) return null;
+
   return (
-    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center p-4">
-        <img 
-            src={post.photo || "https://picsum.photos/40/40"} 
-            className="w-10 h-10 rounded-full object-cover border border-gray-100" 
-        />
-        <div className="ml-3">
-          <h3 className="font-bold text-sm text-gray-900">{post.name}</h3>
-          <span className="text-xs text-gray-400">{new Date(post.timestamp).toLocaleDateString()}</span>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 overflow-hidden">
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center">
+            <img 
+                src={post.photo || "https://picsum.photos/40/40"} 
+                className="w-8 h-8 rounded-full object-cover mr-2" 
+            />
+            <div>
+                <h3 className="font-bold text-sm text-gray-900">{post.name}</h3>
+                <span className="text-[10px] text-gray-400">{new Date(post.timestamp).toLocaleDateString()}</span>
+            </div>
         </div>
+        {post.user_id === currentUser.id && (
+            <button onClick={handleDelete} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+        )}
       </div>
 
-      {/* Content */}
-      <div className="px-4 pb-2">
-        {post.content && <p className="text-gray-800 text-sm mb-3">{post.content}</p>}
+      <div className="px-3 pb-2">
+        {post.content && <p className="text-gray-800 text-sm mb-2">{post.content}</p>}
       </div>
 
-      {/* Media */}
       {post.media_type === 'image' && post.media_url && (
-        <div className="w-full bg-black">
-             <img src={post.media_url} className="w-full h-auto max-h-[400px] object-contain" />
-        </div>
+        <img src={post.media_url} className="w-full h-auto max-h-[400px] object-cover" />
       )}
 
       {post.media_type === 'video' && post.media_url && (
@@ -89,32 +94,28 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       )}
 
       {post.media_type === 'audio' && post.media_url && (
-         <div className="px-4 pb-4">
-             <div className="bg-gray-100 rounded-2xl p-2">
+         <div className="px-3 pb-3">
+             <div className="bg-gray-100 rounded-lg p-2">
                  <AudioMessage src={post.media_url} isMe={false} />
              </div>
          </div>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-50">
-        <div className="flex items-center space-x-4">
+      <div className="flex items-center justify-between px-4 py-2 mt-1">
+        <div className="flex items-center space-x-6">
           <button 
             onClick={handleLike}
-            className={`flex items-center space-x-1.5 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex items-center space-x-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <Heart size={22} fill={liked ? "currentColor" : "none"} />
+            <Heart size={20} fill={liked ? "currentColor" : "none"} />
             <span className="text-sm font-semibold">{likesCount}</span>
           </button>
 
-          <button className="flex items-center space-x-1.5 text-gray-500 hover:text-teal-600">
-            <MessageSquare size={22} />
+          <button className="flex items-center space-x-1 text-gray-500">
+            <MessageSquare size={20} />
             <span className="text-sm font-semibold">{post.comments_count}</span>
           </button>
         </div>
-        <button className="text-gray-400 hover:text-gray-600">
-            <Share2 size={20} />
-        </button>
       </div>
     </div>
   );

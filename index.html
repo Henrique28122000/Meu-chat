@@ -9,6 +9,8 @@
     <style>
       body {
         font-family: 'Outfit', sans-serif;
+        user-select: none; /* Prevent text selection */
+        -webkit-user-select: none;
       }
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
@@ -26,7 +28,7 @@
       }
       
       .gradient-bg {
-        background: linear-gradient(135deg, #10b981 0%, #0f766e 100%);
+        background: linear-gradient(135deg, #008069 0%, #00a884 100%); /* Premium WhatsApp Green */
       }
     </style>
   <script type="importmap">
@@ -42,7 +44,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-gray-900 h-[100dvh] w-screen overflow-hidden flex justify-center">
+  <body class="bg-[#d1d7db] text-gray-900 h-[100dvh] w-screen overflow-hidden flex justify-center select-none">
     <div id="root" class="h-full w-full max-w-md bg-white shadow-2xl relative flex flex-col sm:rounded-[2rem] sm:my-4 sm:h-[calc(100%-2rem)] overflow-hidden border border-gray-100"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

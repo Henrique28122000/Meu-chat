@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, MoreVertical, Paperclip } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Phone, Video, Paperclip, MoreVertical, Trash2, Camera } from 'lucide-react';
 import { api } from '../services/api';
 import { User, Message } from '../types';
 import AudioRecorder from '../components/AudioRecorder';
@@ -10,7 +10,6 @@ interface ChatRoomPageProps {
   currentUser: User;
 }
 
-// Simple Pop Sound URL (Short Base64 or Data URI can be used, using a reliable CDN for a pop sound)
 const SENT_SOUND_URL = "https://cdn.pixabay.com/download/audio/2022/03/15/audio_2239634044.mp3?filename=pop-39222.mp3"; 
 
 const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
@@ -20,8 +19,9 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const [partner, setPartner] = useState<User | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [sending, setSending] = useState(false);
+  const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  // Load Partner Info
   useEffect(() => {
     if (partnerId) {
       api.getUser(partnerId).then(data => {
@@ -30,7 +30,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     }
   }, [partnerId]);
 
-  // Load Messages & Poll
   const loadMessages = async () => {
     if (!partnerId || !currentUser.id) return;
     try {
@@ -60,7 +59,7 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     try {
         const audio = new Audio(SENT_SOUND_URL);
         audio.volume = 0.5;
-        audio.play().catch(e => console.log("Audio play blocked", e));
+        audio.play().catch(e => {});
     } catch(e) {}
   };
 
@@ -69,23 +68,12 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     if (!inputText.trim() || !partnerId) return;
 
     playSentSound();
-
-    const tempMsg: Message = {
-      id: 'temp-' + Date.now(),
-      sender_id: currentUser.id,
-      receiver_id: partnerId,
-      content: inputText,
-      type: 'text',
-      timestamp: new Date().toISOString(),
-      is_sent_by_me: true
-    };
-
-    setMessages(prev => [...prev, tempMsg]);
+    const content = inputText;
     setInputText('');
     setSending(true);
 
     try {
-      await api.sendMessage(currentUser.id, partnerId, tempMsg.content, 'text');
+      await api.sendMessage(currentUser.id, partnerId, content, 'text');
       loadMessages(); 
     } catch (error) {
       console.error("Falha ao enviar", error);
@@ -96,23 +84,7 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
 
   const handleSendAudio = async (blob: Blob) => {
     if (!partnerId) return;
-    
     playSentSound();
-
-    // Optimistic UI
-    const tempUrl = URL.createObjectURL(blob);
-    const tempMsg: Message = {
-      id: 'temp-' + Date.now(),
-      sender_id: currentUser.id,
-      receiver_id: partnerId,
-      content: tempUrl,
-      type: 'audio',
-      timestamp: new Date().toISOString(),
-      is_sent_by_me: true
-    };
-    
-    setMessages(prev => [...prev, tempMsg]);
-
     try {
       const response = await api.uploadAudio(blob, currentUser.id, partnerId);
       if (response.status === 'success' && response.file_path) {
@@ -130,77 +102,101 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     return `https://paulohenriquedev.site/api/${path}`;
   };
 
-  const handleCall = () => {
-    alert("Chamadas de voz e vídeo em breve!");
+  const handleDelete = async (mode: 'me' | 'everyone') => {
+      if(!selectedMsgId) return;
+      try {
+          await api.deleteMessage(selectedMsgId, currentUser.id, mode);
+          setSelectedMsgId(null);
+          loadMessages();
+      } catch(e) {
+          alert("Erro ao deletar");
+      }
+  }
+
+  const goToProfile = () => {
+      if(partnerId) navigate(`/user/${partnerId}`);
   }
 
   if (!partnerId) return <div>Chat Inválido</div>;
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 overflow-hidden relative">
-      {/* Background Pattern - Softer */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-          backgroundImage: `url("https://www.transparenttextures.com/patterns/cubes.png")`,
-          backgroundRepeat: 'repeat'
+    <div className="flex flex-col h-full bg-[#e5ddd5] overflow-hidden relative">
+      {/* WhatsApp Background */}
+      <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
+          backgroundImage: `url("https://i.pinimg.com/originals/97/c0/07/97c00759d90d786d9b6096d274ad3e07.png")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '400px'
       }}></div>
 
-      {/* Modern Header */}
-      <header className="flex-none bg-white/80 backdrop-blur-md text-gray-800 p-2 border-b border-gray-100 flex items-center justify-between shadow-sm h-20 z-20 rounded-b-3xl">
+      {/* Header */}
+      <header className="flex-none bg-[#008069] text-white p-2 flex items-center justify-between shadow-md z-20 h-16">
         <div className="flex items-center">
-          <Link to="/" className="mr-2 hover:bg-gray-100 p-2.5 rounded-full text-gray-600 transition">
+          <Link to="/" className="mr-1 p-2 rounded-full active:bg-white/20">
             <ArrowLeft size={22} />
           </Link>
-          <div className="flex items-center cursor-pointer">
-            {partner ? (
-              <div className="flex items-center">
-                 <div className="relative">
-                    <img 
-                        src={partner.photo || "https://picsum.photos/40/40"} 
-                        alt={partner.name} 
-                        className="w-11 h-11 rounded-full bg-gray-200 object-cover border-2 border-white shadow-sm" 
-                    />
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                 </div>
-                 <div className="ml-3">
-                   <h2 className="font-bold text-gray-800 text-base leading-tight">{partner.name}</h2>
-                   <span className="text-xs text-teal-600 font-medium">Online</span>
-                 </div>
-              </div>
-            ) : (
-              <div className="w-32 h-10 bg-gray-200 animate-pulse rounded-lg"></div>
-            )}
+          <div className="flex items-center cursor-pointer" onClick={goToProfile}>
+            <img 
+                src={partner?.photo || "https://picsum.photos/40/40"} 
+                className="w-9 h-9 rounded-full bg-gray-200 object-cover mr-2" 
+            />
+            <div className="flex flex-col">
+                <h2 className="font-bold text-base leading-tight">{partner?.name || '...'}</h2>
+                <span className="text-[10px] opacity-80">Clique para ver dados</span>
+            </div>
           </div>
         </div>
-        <div className="flex space-x-2 text-teal-600 pr-2">
-           <button onClick={handleCall} className="p-2.5 bg-teal-50 hover:bg-teal-100 rounded-full transition"><Phone size={20} /></button>
-           <button onClick={handleCall} className="p-2.5 bg-teal-50 hover:bg-teal-100 rounded-full transition"><Video size={20} /></button>
+        <div className="flex space-x-4 pr-3">
+           <Video size={22} />
+           <Phone size={20} />
+           <MoreVertical size={20} />
         </div>
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 relative z-10" ref={scrollRef}>
         {messages.map((msg, idx) => {
-          const isMe = String(msg.sender_id) === String(currentUser.id) || String(msg.sender_id) === String(currentUser.uid);
-          const nextIsMe = messages[idx + 1] && (String(messages[idx + 1].sender_id) === String(currentUser.id) || String(messages[idx + 1].sender_id) === String(currentUser.uid)) === isMe;
+          const isMe = String(msg.sender_id) === String(currentUser.id);
+          const isDeleted = msg.is_deleted; // Requires backend update to return this field or check content
+          // If backend physically deletes 'for everyone', the row is gone. 
+          // If 'soft delete', check is_deleted flag.
           
+          if(isDeleted && !isMe) return null; // If deleted for everyone, don't show to receiver? Or show "deleted"?
+          // Assuming backend soft delete logic: content might be null or special flag
+
           return (
-            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group animate-in slide-in-from-bottom-2 duration-300`}>
+            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div 
-                className={`max-w-[85%] px-4 py-3 shadow-sm relative transition-all ${
+                onClick={() => isMe ? setSelectedMsgId(msg.id) : null}
+                className={`max-w-[80%] px-2 py-1.5 shadow-sm rounded-lg relative text-sm select-none ${
                   isMe 
-                    ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl rounded-tr-sm' 
-                    : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-100'
-                } ${!nextIsMe ? 'mb-2' : ''}`}
+                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none' 
+                    : 'bg-white text-gray-800 rounded-tl-none'
+                }`}
               >
-                {msg.type === 'audio' ? (
-                  <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
+                {/* Deleted Content Handler */}
+                {isDeleted ? (
+                    <div className="italic text-gray-500 flex items-center gap-1">
+                        <span className="block w-3 h-3 border border-gray-400 rounded-full bg-gray-300"></span> 
+                        Mensagem apagada
+                    </div>
                 ) : (
-                  <p className="text-[15px] leading-relaxed break-words pb-1 font-normal">{msg.content}</p>
+                    <>
+                        {msg.type === 'audio' ? (
+                        <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
+                        ) : (
+                        <p className="pb-1 px-1">{msg.content}</p>
+                        )}
+                    </>
                 )}
                 
-                <div className={`text-[10px] text-right mt-1 opacity-70 flex items-center justify-end gap-1 font-medium`}>
+                <div className={`text-[9px] text-gray-500 text-right flex items-center justify-end gap-1 mt-0.5`}>
                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                   {isMe && <span className="text-[10px]">✓</span>}
+                   {isMe && !isDeleted && (
+                       <span className={msg.is_read ? "text-blue-500" : "text-gray-400"}>
+                           {/* Double Tick SVG */}
+                           <svg viewBox="0 0 16 15" width="16" height="11" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.473-.018l5.614-7.533a.419.419 0 0 0-.06-.546zm-6.918 6.566l.492.368a.365.365 0 0 0 .509-.063l.142-.187a.32.32 0 0 1 .484-.033l.358.325a.319.319 0 0 0 .484-.032l.378-.483a.418.418 0 0 0-.036-.541l-1.32-1.266a.33.33 0 0 0-.473.018l-.13.175a.419.419 0 0 0 .06.546l.128.118-1.076-1.034a.42.42 0 0 0-.58.016l-1.32 1.266a.33.33 0 0 0-.473.018l-3.32 4.456a.419.419 0 0 0 .06.546l.478.372a.365.365 0 0 0 .51-.063l2.847-3.82a.32.32 0 0 1 .484-.033l1.192 1.09z"></path></svg>
+                       </span>
+                   )}
                 </div>
               </div>
             </div>
@@ -209,38 +205,43 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
       </div>
 
       {/* Input Area */}
-      <div className="flex-none p-3 bg-white z-20 pb-4 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center space-x-2">
-            
-            <button className="p-2 text-gray-400 hover:text-teal-600 transition"><Paperclip size={22} /></button>
-
-            <div className="flex-1 bg-gray-100 rounded-[2rem] flex items-center px-4 py-1.5 focus-within:ring-2 focus-within:ring-teal-100 focus-within:bg-white transition-all duration-300">
-                 <form onSubmit={handleSendText} className="flex-1 flex items-center">
-                    <input
-                        type="text"
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        placeholder="Digite sua mensagem..."
-                        className="flex-1 bg-transparent py-2.5 focus:outline-none text-gray-700 placeholder-gray-400"
-                    />
-                 </form>
-            </div>
-
-            {inputText.length > 0 ? (
-                 <button 
-                    onClick={handleSendText}
-                    disabled={sending}
-                    className="bg-teal-600 text-white p-3.5 rounded-full shadow-lg shadow-teal-500/30 hover:bg-teal-700 transition-all active:scale-95"
-                 >
-                    <ArrowLeft className="rotate-180" size={24} />
-                 </button>
-            ) : (
-                <div className="shadow-lg shadow-teal-500/20 rounded-full bg-teal-600">
-                   <AudioRecorder onSend={handleSendAudio} />
-                </div>
-            )}
+      <div className="flex-none p-2 bg-transparent z-20 pb-2 px-2 flex gap-1 items-end">
+        <div className="flex-1 bg-white rounded-3xl flex items-end p-1 shadow-sm min-h-[45px]">
+            <button className="p-2 text-gray-400"><Paperclip size={20} /></button>
+            <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Mensagem"
+                className="flex-1 bg-transparent py-2.5 px-2 focus:outline-none text-gray-700 placeholder-gray-400 resize-none max-h-24 overflow-y-auto"
+                rows={1}
+            />
+             <div className="p-2"><Camera size={20} className="text-gray-400" /></div>
         </div>
+
+        {inputText.length > 0 ? (
+             <button 
+                onClick={handleSendText}
+                disabled={sending}
+                className="w-11 h-11 bg-[#008069] text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition"
+             >
+                <div className="ml-1 -rotate-45"><svg viewBox="0 0 24 24" height="24" width="24" preserveAspectRatio="xMidYMid meet" fill="currentColor"><path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path></svg></div>
+             </button>
+        ) : (
+             <div className="mb-0.5"><AudioRecorder onSend={handleSendAudio} /></div>
+        )}
       </div>
+
+      {/* Delete Menu Modal */}
+      {selectedMsgId && (
+          <div className="absolute inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setSelectedMsgId(null)}>
+              <div className="bg-white rounded-lg shadow-xl p-4 w-64 space-y-3" onClick={e => e.stopPropagation()}>
+                  <h3 className="font-bold text-gray-700 text-center mb-2">Apagar mensagem?</h3>
+                  <button onClick={() => handleDelete('me')} className="w-full p-2 border border-[#008069] text-[#008069] rounded font-bold hover:bg-green-50">Apagar para mim</button>
+                  <button onClick={() => handleDelete('everyone')} className="w-full p-2 bg-[#008069] text-white rounded font-bold hover:opacity-90">Apagar para todos</button>
+                  <button onClick={() => setSelectedMsgId(null)} className="w-full p-2 text-gray-500 text-sm">Cancelar</button>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import { User, Message, ApiResponse, Status, Post, Comment, FollowStats } from '../types';
+import { User, Message, ApiResponse, Status, Post, Comment, FollowStats, Viewer } from '../types';
 
 const BASE_URL = 'https://paulohenriquedev.site/api';
 
@@ -25,7 +25,6 @@ export const api = {
   },
 
   getProfileStats: async (my_id: string, target_id: string) => {
-    // Retorna dados do usuário + contadores de seguidores + se eu sigo ele
     return request<User & FollowStats>(`getUserProfile.php?my_id=${my_id}&target_id=${target_id}`);
   },
 
@@ -63,9 +62,15 @@ export const api = {
     });
   },
 
+  deleteMessage: async (message_id: string, user_id: string, mode: 'me' | 'everyone') => {
+    return request<ApiResponse<any>>('deleteMessage.php', {
+      method: 'POST',
+      body: JSON.stringify({ message_id, user_id, mode }),
+    });
+  },
+
   // --- Feed & Posts ---
   getPosts: async (user_id: string) => {
-    // user_id serve para verificar se 'eu' curti os posts
     return request<Post[]>(`getPosts.php?user_id=${user_id}`);
   },
 
@@ -73,6 +78,13 @@ export const api = {
     return request<ApiResponse<any>>('createPost.php', {
       method: 'POST',
       body: JSON.stringify({ user_id, content, media_url, media_type }),
+    });
+  },
+
+  deletePost: async (post_id: string, user_id: string) => {
+    return request<ApiResponse<any>>('deletePost.php', {
+      method: 'POST',
+      body: JSON.stringify({ post_id, user_id }),
     });
   },
 
@@ -106,11 +118,36 @@ export const api = {
     });
   },
 
+  cleanupStatuses: async () => {
+    // Calls endpoint to delete status > 24h
+    return request<ApiResponse<any>>('cleanupStatuses.php');
+  },
+
+  viewStatus: async (status_id: string, user_id: string) => {
+    return request<ApiResponse<any>>('statusInteract.php', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'view', status_id, user_id }),
+    });
+  },
+
+  deleteStatus: async (status_id: string, user_id: string) => {
+    return request<ApiResponse<any>>('statusInteract.php', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', status_id, user_id }),
+    });
+  },
+
+  getStatusViewers: async (status_id: string) => {
+    return request<Viewer[]>('statusInteract.php', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'get_viewers', status_id })
+    });
+  },
+
   // --- Uploads ---
   uploadAudio: async (audioBlob: Blob, sender_id: string, receiver_id: string = '0') => {
     const formData = new FormData();
     formData.append('audio_file', audioBlob, 'audio.mp3');
-    // Para posts, receiver_id pode ser ignorado no PHP ou mande '0'
     formData.append('sender_id', sender_id);
     
     const response = await fetch(`${BASE_URL}/uploadAudio.php`, { method: 'POST', body: formData });

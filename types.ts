@@ -16,6 +16,8 @@ export interface Message {
   type: 'text' | 'audio';
   timestamp: string;
   is_sent_by_me?: boolean;
+  is_read?: boolean;
+  is_deleted?: boolean; // New field
 }
 
 export interface Status {
@@ -23,10 +25,17 @@ export interface Status {
   user_id: string;
   name: string;
   photo: string;
-  media_url: string; // Renomeado de image_url para ser genérico
+  media_url: string;
   media_type: 'image' | 'video' | 'text' | 'audio';
   caption?: string;
   timestamp: string;
+  viewed_by_me?: boolean; // New field
+  viewers_count?: number; // New field
+}
+
+export interface Viewer {
+  name: string;
+  photo: string;
 }
 
 export interface Post {
@@ -65,4 +74,5 @@ export interface ApiResponse<T> {
   file_url?: string;
   file_path?: string;
   user_id?: string;
+  deleted?: number;
 }
