@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Heart, MessageSquare, Share2, Play, Trash2 } from 'lucide-react';
-import { Post, User } from '../types';
+import { Post, User, formatTimeSP } from '../types';
 import { api } from '../services/api';
 import AudioMessage from './AudioMessage';
 
@@ -57,7 +57,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
             />
             <div>
                 <h3 className="font-bold text-sm text-gray-900">{post.name}</h3>
-                <span className="text-[10px] text-gray-400">{new Date(post.timestamp).toLocaleDateString()}</span>
+                <span className="text-[10px] text-gray-400">{formatTimeSP(post.timestamp)}</span>
             </div>
         </div>
         {post.user_id === currentUser.id && (

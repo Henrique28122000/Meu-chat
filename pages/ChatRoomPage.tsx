@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, Video, Paperclip, MoreVertical, Trash2, Camera } from 'lucide-react';
 import { api } from '../services/api';
-import { User, Message } from '../types';
+import { User, Message, formatTimeSP } from '../types';
 import AudioRecorder from '../components/AudioRecorder';
 import AudioMessage from '../components/AudioMessage';
 
@@ -156,12 +157,9 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
       <div className="flex-1 overflow-y-auto p-4 space-y-2 relative z-10" ref={scrollRef}>
         {messages.map((msg, idx) => {
           const isMe = String(msg.sender_id) === String(currentUser.id);
-          const isDeleted = msg.is_deleted; // Requires backend update to return this field or check content
-          // If backend physically deletes 'for everyone', the row is gone. 
-          // If 'soft delete', check is_deleted flag.
+          const isDeleted = msg.is_deleted;
           
-          if(isDeleted && !isMe) return null; // If deleted for everyone, don't show to receiver? Or show "deleted"?
-          // Assuming backend soft delete logic: content might be null or special flag
+          if(isDeleted && !isMe) return null;
 
           return (
             <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -173,7 +171,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                     : 'bg-white text-gray-800 rounded-tl-none'
                 }`}
               >
-                {/* Deleted Content Handler */}
                 {isDeleted ? (
                     <div className="italic text-gray-500 flex items-center gap-1">
                         <span className="block w-3 h-3 border border-gray-400 rounded-full bg-gray-300"></span> 
@@ -190,10 +187,9 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                 )}
                 
                 <div className={`text-[9px] text-gray-500 text-right flex items-center justify-end gap-1 mt-0.5`}>
-                   {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                   {formatTimeSP(msg.timestamp)}
                    {isMe && !isDeleted && (
                        <span className={msg.is_read ? "text-blue-500" : "text-gray-400"}>
-                           {/* Double Tick SVG */}
                            <svg viewBox="0 0 16 15" width="16" height="11" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.473-.018l5.614-7.533a.419.419 0 0 0-.06-.546zm-6.918 6.566l.492.368a.365.365 0 0 0 .509-.063l.142-.187a.32.32 0 0 1 .484-.033l.358.325a.319.319 0 0 0 .484-.032l.378-.483a.418.418 0 0 0-.036-.541l-1.32-1.266a.33.33 0 0 0-.473.018l-.13.175a.419.419 0 0 0 .06.546l.128.118-1.076-1.034a.42.42 0 0 0-.58.016l-1.32 1.266a.33.33 0 0 0-.473.018l-3.32 4.456a.419.419 0 0 0 .06.546l.478.372a.365.365 0 0 0 .51-.063l2.847-3.82a.32.32 0 0 1 .484-.033l1.192 1.09z"></path></svg>
                        </span>
                    )}
@@ -204,7 +200,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
         })}
       </div>
 
-      {/* Input Area */}
       <div className="flex-none p-2 bg-transparent z-20 pb-2 px-2 flex gap-1 items-end">
         <div className="flex-1 bg-white rounded-3xl flex items-end p-1 shadow-sm min-h-[45px]">
             <button className="p-2 text-gray-400"><Paperclip size={20} /></button>
@@ -231,7 +226,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
         )}
       </div>
 
-      {/* Delete Menu Modal */}
       {selectedMsgId && (
           <div className="absolute inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setSelectedMsgId(null)}>
               <div className="bg-white rounded-lg shadow-xl p-4 w-64 space-y-3" onClick={e => e.stopPropagation()}>

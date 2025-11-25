@@ -1,5 +1,5 @@
 
-import { User, Message, ApiResponse, Status, Post, Comment, FollowStats, Viewer } from '../types';
+import { User, Message, ApiResponse, Status, Post, Comment, FollowStats, Viewer, Notification } from '../types';
 
 const BASE_URL = 'https://paulohenriquedev.site/api';
 
@@ -44,6 +44,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ follower_id, followed_id, action }),
     });
+  },
+
+  getNotifications: async (user_id: string) => {
+    return request<Notification[]>(`getNotifications.php?user_id=${user_id}`);
   },
 
   // --- Messages ---
@@ -107,8 +111,9 @@ export const api = {
   },
 
   // --- Status ---
-  getStatuses: async () => {
-    return request<Status[]>('getStatuses.php');
+  getStatuses: async (user_id: string) => {
+    // Agora passa o user_id para o PHP filtrar por quem sigo
+    return request<Status[]>(`getStatuses.php?user_id=${user_id}`);
   },
 
   postStatus: async (user_id: string, media_url: string, media_type: string, caption: string) => {
@@ -119,7 +124,6 @@ export const api = {
   },
 
   cleanupStatuses: async () => {
-    // Calls endpoint to delete status > 24h
     return request<ApiResponse<any>>('cleanupStatuses.php');
   },
 

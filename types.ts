@@ -17,7 +17,7 @@ export interface Message {
   timestamp: string;
   is_sent_by_me?: boolean;
   is_read?: boolean;
-  is_deleted?: boolean; // New field
+  is_deleted?: boolean;
 }
 
 export interface Status {
@@ -29,8 +29,16 @@ export interface Status {
   media_type: 'image' | 'video' | 'text' | 'audio';
   caption?: string;
   timestamp: string;
-  viewed_by_me?: boolean; // New field
-  viewers_count?: number; // New field
+  viewed_by_me?: boolean;
+  viewers_count?: number;
+}
+
+export interface StatusGroup {
+  user_id: string;
+  user_name: string;
+  user_photo: string;
+  statuses: Status[];
+  hasUnviewed: boolean;
 }
 
 export interface Viewer {
@@ -67,6 +75,14 @@ export interface FollowStats {
   is_following: boolean;
 }
 
+export interface Notification {
+  type: 'liked' | 'follow';
+  name: string;
+  photo: string;
+  content: string;
+  timestamp?: string;
+}
+
 export interface ApiResponse<T> {
   status: 'success' | 'error';
   message?: string;
@@ -76,3 +92,18 @@ export interface ApiResponse<T> {
   user_id?: string;
   deleted?: number;
 }
+
+// Helper para hora de São Paulo
+export const formatTimeSP = (dateString?: string) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit', 
+      minute: '2-digit', 
+      timeZone: 'America/Sao_Paulo'
+    }).format(date);
+  } catch (e) {
+    return '';
+  }
+};

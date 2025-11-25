@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { User } from '../types';
-import { Search, Camera } from 'lucide-react';
+import { User, Notification, formatTimeSP } from '../types';
+import { Search, Camera, Bell, X } from 'lucide-react';
 
 interface ChatListPageProps {
   currentUser: User;
@@ -12,11 +12,12 @@ interface ChatListPageProps {
 const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const navigate = useNavigate();
 
-  // Run only once on mount to clean old statuses
   useEffect(() => {
-    api.cleanupStatuses().then(res => console.log("Status cleanup:", res)).catch(console.error);
+    api.cleanupStatuses().catch(console.error);
   }, []);
 
   const fetchChats = async () => {
@@ -30,11 +31,22 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
     }
   };
 
+  const fetchNotifications = async () => {
+      try {
+          const data = await api.getNotifications(currentUser.id);
+          if(Array.isArray(data)) setNotifications(data);
+      } catch (e) {}
+  };
+
   useEffect(() => {
     fetchChats();
     const interval = setInterval(fetchChats, 3000);
     return () => clearInterval(interval);
   }, [currentUser.id]);
+
+  useEffect(() => {
+      if(showNotifications) fetchNotifications();
+  }, [showNotifications]);
 
   const goToProfile = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
@@ -48,10 +60,13 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
       <header className="px-5 py-4 bg-[#008069] text-white shadow-md z-10 sticky top-0">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-xl font-bold tracking-wide">PH Chat</h1>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-5">
                  <Link to="/status"><Camera size={22} /></Link>
                  <Link to="/search"><Search size={22} /></Link>
-                 <img src={currentUser.photo} className="w-8 h-8 rounded-full border border-white/50" />
+                 <button onClick={() => setShowNotifications(true)} className="relative">
+                     <Bell size={22} />
+                     <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-[#008069]"></span>
+                 </button>
             </div>
           </div>
           
@@ -89,10 +104,6 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                     if(chat.content.includes('uploads/videos')) preview = '📹 Vídeo';
                     if(chat.content.includes('uploads/photos')) preview = '📷 Foto';
 
-                    // Se a mensagem for deletada e for a última, mostrar texto
-                    // (A lógica de deleteMessage deve atualizar o content para 'Mensagem apagada' ou remover row. 
-                    // Se remover row, pega a penultima. Se atualizar content, mostra aqui.)
-                    
                     return (
                     <li key={index}>
                         <Link to={`/chat/${partnerId}`} className="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors">
@@ -107,7 +118,7 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                             <div className="flex justify-between items-center mb-1">
                                 <h3 className="text-base font-bold text-gray-900 truncate">{name}</h3>
                                 <span className={`text-xs ${chat.unread > 0 ? 'text-[#00a884] font-bold' : 'text-gray-400'}`}>
-                                    {new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {formatTimeSP(chat.timestamp)}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
@@ -129,6 +140,33 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
             </ul>
         )}
       </div>
+
+      {/* Notifications Modal */}
+      {showNotifications && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end">
+              <div className="w-80 h-full bg-white shadow-2xl animate-in slide-in-from-right flex flex-col">
+                  <div className="p-4 bg-[#008069] text-white flex justify-between items-center">
+                      <h2 className="font-bold">Notificações</h2>
+                      <button onClick={() => setShowNotifications(false)}><X size={20}/></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                      {notifications.length === 0 ? (
+                          <p className="text-center text-gray-400 mt-10 text-sm">Nenhuma notificação recente.</p>
+                      ) : (
+                          notifications.map((notif, i) => (
+                              <div key={i} className="flex items-center gap-3 p-3 border-b border-gray-100">
+                                  <img src={notif.photo} className="w-10 h-10 rounded-full" />
+                                  <div className="text-sm">
+                                      <p className="text-gray-800"><span className="font-bold">{notif.name}</span> {notif.content}</p>
+                                      <span className="text-xs text-gray-400">{notif.timestamp ? formatTimeSP(notif.timestamp) : 'Hoje'}</span>
+                                  </div>
+                              </div>
+                          ))
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
-import { Status, User, Viewer } from '../types';
+import { Status, User, Viewer, StatusGroup, formatTimeSP } from '../types';
 import { Plus, X, Camera, Video, Mic, Trash2, Eye } from 'lucide-react';
 import AudioRecorder from '../components/AudioRecorder';
 import AudioMessage from '../components/AudioMessage';
@@ -11,12 +11,16 @@ interface StatusPageProps {
 }
 
 const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
-  const [statuses, setStatuses] = useState<Status[]>([]);
-  const [viewingStatus, setViewingStatus] = useState<Status | null>(null);
-  const [showCreator, setShowCreator] = useState(false);
+  const [groupedStatuses, setGroupedStatuses] = useState<StatusGroup[]>([]);
+  
+  // Viewer State
+  const [viewingGroupIndex, setViewingGroupIndex] = useState<number | null>(null);
+  const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [viewers, setViewers] = useState<Viewer[] | null>(null);
   
-  // Create Status State
+  // Creator State
+  const [showCreator, setShowCreator] = useState(false);
   const [file, setFile] = useState<File | Blob | null>(null);
   const [type, setType] = useState<'image' | 'video' | 'audio' | 'text'>('image');
   const [caption, setCaption] = useState('');
@@ -24,14 +28,52 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
   const [uploading, setUploading] = useState(false);
 
   const fetchStatuses = async () => {
-      const data = await api.getStatuses();
-      if(Array.isArray(data)) setStatuses(data);
+      try {
+          // Now fetches only friends' statuses via PHP logic
+          const data = await api.getStatuses(currentUser.id);
+          
+          if(Array.isArray(data)) {
+              // Group by User
+              const groups: {[key: string]: StatusGroup} = {};
+              
+              data.forEach(st => {
+                  if(!groups[st.user_id]) {
+                      groups[st.user_id] = {
+                          user_id: st.user_id,
+                          user_name: st.user_id === currentUser.id ? 'Meu Status' : st.name,
+                          user_photo: st.photo,
+                          statuses: [],
+                          hasUnviewed: false
+                      };
+                  }
+                  groups[st.user_id].statuses.push(st);
+                  if(st.user_id !== currentUser.id && !st.viewed_by_me) {
+                      groups[st.user_id].hasUnviewed = true;
+                  }
+              });
+
+              // Convert to array, put "Me" first
+              let groupArray = Object.values(groups);
+              const myGroup = groupArray.find(g => g.user_id === currentUser.id);
+              const others = groupArray.filter(g => g.user_id !== currentUser.id);
+              
+              // Sort others: Unviewed first, then alphabetical
+              others.sort((a, b) => {
+                  if (a.hasUnviewed && !b.hasUnviewed) return -1;
+                  if (!a.hasUnviewed && b.hasUnviewed) return 1;
+                  return 0;
+              });
+
+              setGroupedStatuses(myGroup ? [myGroup, ...others] : others);
+          }
+      } catch(e) { console.error(e) }
   }
 
   useEffect(() => {
       fetchStatuses();
-  }, []);
+  }, [currentUser.id]);
 
+  // --- POSTING LOGIC ---
   const handlePost = async () => {
       if(!file) return;
       setUploading(true);
@@ -50,9 +92,11 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
           if(url) {
               await api.postStatus(currentUser.id, url, type, caption);
-              fetchStatuses();
+              await fetchStatuses(); // Reload list
               setShowCreator(false);
               setFile(null); setPreview(null); setCaption('');
+          } else {
+              alert("Falha no upload. Tente novamente.");
           }
       } catch(e) {
           alert("Erro ao postar status");
@@ -69,76 +113,191 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       }
   }
 
-  // When viewing status
+  // --- VIEWER LOGIC ---
   useEffect(() => {
-      if(viewingStatus) {
-          setViewers(null);
-          // Mark as viewed if not me
-          if(viewingStatus.user_id !== currentUser.id) {
-              api.viewStatus(viewingStatus.id, currentUser.id);
+      let timer: any;
+      if (viewingGroupIndex !== null) {
+          const group = groupedStatuses[viewingGroupIndex];
+          if(!group || !group.statuses[currentStatusIndex]) {
+              closeViewer();
+              return;
+          }
+
+          const currentStatus = group.statuses[currentStatusIndex];
+          
+          // Mark as viewed
+          if(currentStatus.user_id !== currentUser.id) {
+             api.viewStatus(currentStatus.id, currentUser.id);
+          }
+
+          setProgress(0);
+          
+          // Auto advance timer (5s for images/text, video duration for others)
+          const duration = currentStatus.media_type === 'video' ? 15000 : 5000; 
+          const step = 100 / (duration / 100);
+
+          timer = setInterval(() => {
+              setProgress(old => {
+                  if (old >= 100) {
+                      clearInterval(timer);
+                      nextStatus();
+                      return 100;
+                  }
+                  return old + step;
+              });
+          }, 100);
+      }
+      return () => clearInterval(timer);
+  }, [viewingGroupIndex, currentStatusIndex]);
+
+  const nextStatus = () => {
+      if(viewingGroupIndex === null) return;
+      const group = groupedStatuses[viewingGroupIndex];
+      
+      if (currentStatusIndex < group.statuses.length - 1) {
+          setCurrentStatusIndex(prev => prev + 1);
+          setProgress(0);
+      } else {
+          // Next User Group
+          if (viewingGroupIndex < groupedStatuses.length - 1) {
+              setViewingGroupIndex(prev => (prev !== null ? prev + 1 : null));
+              setCurrentStatusIndex(0);
+              setProgress(0);
+          } else {
+              closeViewer();
           }
       }
-  }, [viewingStatus, currentUser.id]);
+  };
 
-  const fetchViewers = async () => {
-      if(viewingStatus) {
-          const v = await api.getStatusViewers(viewingStatus.id);
-          setViewers(v);
+  const prevStatus = () => {
+      if (currentStatusIndex > 0) {
+          setCurrentStatusIndex(prev => prev - 1);
+          setProgress(0);
+      } else {
+           // Previous User Group
+           if(viewingGroupIndex !== null && viewingGroupIndex > 0) {
+               setViewingGroupIndex(prev => (prev !== null ? prev - 1 : null));
+               setCurrentStatusIndex(0); // Should theoretically go to last status of prev user, but 0 is fine for MVP
+           } else {
+               closeViewer();
+           }
+      }
+  };
+
+  const closeViewer = () => {
+      setViewingGroupIndex(null);
+      setCurrentStatusIndex(0);
+      setProgress(0);
+      setViewers(null);
+  };
+
+  const deleteCurrentStatus = async () => {
+      if(viewingGroupIndex === null) return;
+      const group = groupedStatuses[viewingGroupIndex];
+      const status = group.statuses[currentStatusIndex];
+
+      if(confirm("Excluir este status?")) {
+          await api.deleteStatus(status.id, currentUser.id);
+          
+          // Remove from local state immediately
+          const newGroups = [...groupedStatuses];
+          newGroups[viewingGroupIndex].statuses.splice(currentStatusIndex, 1);
+          
+          if(newGroups[viewingGroupIndex].statuses.length === 0) {
+              newGroups.splice(viewingGroupIndex, 1);
+              closeViewer();
+          } else {
+              // Verify index bounds
+              if(currentStatusIndex >= newGroups[viewingGroupIndex].statuses.length) {
+                  setCurrentStatusIndex(prev => prev - 1); 
+              } else {
+                  // Stay on same index (which is now the next item)
+                  setProgress(0);
+              }
+          }
+          setGroupedStatuses(newGroups);
       }
   }
 
-  const deleteStatus = async () => {
-      if(!viewingStatus) return;
-      if(confirm("Excluir status?")) {
-          await api.deleteStatus(viewingStatus.id, currentUser.id);
-          setViewingStatus(null);
-          fetchStatuses();
-      }
+  const loadViewers = async () => {
+      if(viewingGroupIndex === null) return;
+      const status = groupedStatuses[viewingGroupIndex].statuses[currentStatusIndex];
+      const v = await api.getStatusViewers(status.id);
+      setViewers(v);
   }
+
+  // --- RENDER ---
+  const activeGroup = viewingGroupIndex !== null ? groupedStatuses[viewingGroupIndex] : null;
+  const activeStatus = activeGroup ? activeGroup.statuses[currentStatusIndex] : null;
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
       <header className="px-5 py-4 bg-[#008069] text-white shadow-sm z-10 sticky top-0 flex justify-between items-center">
           <h1 className="text-xl font-bold">Status</h1>
-          <div className="flex gap-4">
-            <button onClick={() => setShowCreator(true)} className="p-1 rounded-full hover:bg-white/10 transition">
-                <Camera size={22} />
-            </button>
-          </div>
+          <button onClick={() => setShowCreator(true)} className="p-1 rounded-full hover:bg-white/10 transition">
+              <Camera size={22} />
+          </button>
       </header>
 
-      <div className="p-4 grid grid-cols-3 gap-2 overflow-y-auto">
-           {/* My Status Card */}
-           <div onClick={() => setShowCreator(true)} className="aspect-[9/16] rounded-xl bg-gray-100 border border-gray-300 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group">
-               <div className="w-10 h-10 rounded-full bg-[#008069] flex items-center justify-center mb-2 shadow-lg">
-                   <Plus size={20} className="text-white" />
+      <div className="flex-1 overflow-y-auto">
+           {/* My Status Row */}
+           <div className="p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
+               const myGroupIndex = groupedStatuses.findIndex(g => g.user_id === currentUser.id);
+               if(myGroupIndex !== -1) {
+                   setViewingGroupIndex(myGroupIndex);
+                   setCurrentStatusIndex(0);
+               } else {
+                   setShowCreator(true);
+               }
+           }}>
+               <div className="relative">
+                   <img src={currentUser.photo} className="w-14 h-14 rounded-full object-cover" />
+                   <div className="absolute bottom-0 right-0 bg-[#008069] rounded-full p-0.5 border-2 border-white">
+                       <Plus size={14} className="text-white"/>
+                   </div>
                </div>
-               <span className="text-xs font-bold text-gray-500">Meu Status</span>
+               <div className="flex-1 border-b border-gray-100 pb-4 pt-2">
+                   <h3 className="font-bold text-gray-900">Meu Status</h3>
+                   <p className="text-xs text-gray-500">Toque para adicionar ou ver</p>
+               </div>
            </div>
 
-           {statuses.map((st, i) => (
-               <div key={i} onClick={() => setViewingStatus(st)} className="aspect-[9/16] rounded-xl bg-black relative overflow-hidden cursor-pointer shadow-sm group">
-                   {st.media_type === 'image' && <img src={st.media_url} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" />}
-                   {st.media_type === 'video' && <video src={st.media_url} className="w-full h-full object-cover opacity-90" />}
-                   {st.media_type === 'audio' && <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600"><Mic size={24} className="text-white" /></div>}
-                   
-                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                       <h3 className="text-white text-[10px] font-bold truncate">{st.name}</h3>
+           <h2 className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Atualizações recentes</h2>
+
+           {/* Other Users Rows */}
+           {groupedStatuses.filter(g => g.user_id !== currentUser.id).map((group, idx) => {
+               // Offset index because filtered list
+               const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
+               const lastStatus = group.statuses[group.statuses.length - 1];
+
+               return (
+                   <div key={group.user_id} className="p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
+                       setViewingGroupIndex(originalIndex);
+                       setCurrentStatusIndex(0);
+                   }}>
+                       <div className={`p-[2px] rounded-full border-2 ${group.hasUnviewed ? 'border-[#008069]' : 'border-gray-300'}`}>
+                           <img src={group.user_photo} className="w-12 h-12 rounded-full object-cover" />
+                       </div>
+                       <div className="flex-1 border-b border-gray-100 pb-4 pt-2">
+                           <h3 className="font-bold text-gray-900">{group.user_name}</h3>
+                           <p className="text-xs text-gray-500">
+                               {formatTimeSP(lastStatus.timestamp)}
+                           </p>
+                       </div>
                    </div>
-                   <div className={`absolute top-2 left-2 p-0.5 rounded-full border-2 ${st.user_id === currentUser.id ? 'border-green-500' : 'border-blue-500'}`}>
-                       <img src={st.photo} className="w-6 h-6 rounded-full" />
-                   </div>
-               </div>
-           ))}
+               )
+           })}
       </div>
 
-      {/* Creator Modal */}
+      {/* --- CREATOR MODAL --- */}
       {showCreator && (
           <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in slide-in-from-bottom">
               <div className="flex justify-between p-4 bg-black/50 absolute top-0 w-full z-10 text-white">
                   <button onClick={() => setShowCreator(false)}><X /></button>
                   <span className="font-bold">Novo Status</span>
-                  <button onClick={handlePost} disabled={!file || uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">Enviar</button>
+                  <button onClick={handlePost} disabled={!file || uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">
+                      {uploading ? 'Enviando...' : 'Enviar'}
+                  </button>
               </div>
               <div className="flex-1 bg-black flex flex-col items-center justify-center relative">
                   {!file ? (
@@ -173,60 +332,77 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           </div>
       )}
 
-       {/* Full Screen Viewer */}
-      {viewingStatus && (
+       {/* --- VIEWER OVERLAY --- */}
+      {activeGroup && activeStatus && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
+            {/* Progress Bars */}
             <div className="absolute top-2 left-2 right-2 flex gap-1 z-20">
-                 {/* Progress Bar placeholder - simulates timer */}
-                 <div className="h-1 bg-white/30 flex-1 rounded-full overflow-hidden">
-                     <div className="h-full bg-white animate-[progress_5s_linear]" onAnimationEnd={() => setViewingStatus(null)}></div>
-                 </div>
+                {activeGroup.statuses.map((st, i) => (
+                    <div key={st.id} className="h-1 bg-white/30 flex-1 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-white transition-all duration-100 linear"
+                            style={{ 
+                                width: i < currentStatusIndex ? '100%' : (i === currentStatusIndex ? `${progress}%` : '0%')
+                            }} 
+                        ></div>
+                    </div>
+                ))}
             </div>
 
             <div className="flex items-center justify-between p-4 pt-6 text-white z-10">
                 <div className="flex items-center gap-3">
-                    <img src={viewingStatus.photo} className="w-10 h-10 rounded-full border border-white/50" />
-                    <div><h4 className="font-bold text-sm">{viewingStatus.name}</h4><span className="text-xs text-gray-300">Há pouco</span></div>
+                    <img src={activeGroup.user_photo} className="w-10 h-10 rounded-full border border-white/50" />
+                    <div>
+                        <h4 className="font-bold text-sm">{activeGroup.user_name}</h4>
+                        <span className="text-xs text-gray-300">{formatTimeSP(activeStatus.timestamp)}</span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    {/* Owner controls */}
-                    {viewingStatus.user_id === currentUser.id && (
-                        <button onClick={deleteStatus} className="p-2"><Trash2 size={24} /></button>
+                    {activeGroup.user_id === currentUser.id && (
+                        <button onClick={deleteCurrentStatus} className="p-2"><Trash2 size={24} /></button>
                     )}
-                    <button onClick={() => setViewingStatus(null)}><X size={28} /></button>
+                    <button onClick={closeViewer}><X size={28} /></button>
                 </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center relative bg-gray-900">
-                 {viewingStatus.media_type === 'image' && <img src={viewingStatus.media_url} className="max-w-full max-h-full" />}
-                 {viewingStatus.media_type === 'video' && <video src={viewingStatus.media_url} autoPlay className="max-w-full max-h-full" />}
-                 {viewingStatus.media_type === 'audio' && <div className="p-10 bg-white/10 rounded-3xl backdrop-blur"><AudioMessage src={viewingStatus.media_url} isMe={false} /></div>}
+            {/* Click Zones for Navigation */}
+            <div className="absolute inset-0 flex z-0">
+                <div className="w-1/3 h-full" onClick={prevStatus}></div>
+                <div className="w-1/3 h-full"></div> {/* Center taps could pause */}
+                <div className="w-1/3 h-full" onClick={nextStatus}></div>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center relative bg-gray-900 pointer-events-none">
+                 {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full" />}
+                 {activeStatus.media_type === 'video' && <video src={activeStatus.media_url} autoPlay className="max-w-full max-h-full" />}
+                 {activeStatus.media_type === 'audio' && <div className="p-10 bg-white/10 rounded-3xl backdrop-blur pointer-events-auto"><AudioMessage src={activeStatus.media_url} isMe={false} /></div>}
             </div>
             
-            <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4">
-                {viewingStatus.caption && <p className="text-lg bg-black/30 p-2 rounded mb-4">{viewingStatus.caption}</p>}
+            <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4 pointer-events-auto">
+                {activeStatus.caption && <p className="text-lg bg-black/30 p-2 rounded mb-4 max-w-[80%] text-center">{activeStatus.caption}</p>}
                 
-                {/* Viewers Eye for Owner */}
-                {viewingStatus.user_id === currentUser.id && (
-                    <button onClick={fetchViewers} className="flex flex-col items-center">
+                {activeGroup.user_id === currentUser.id && (
+                    <button onClick={loadViewers} className="flex flex-col items-center mt-2">
                         <Eye size={24} />
-                        <span className="text-xs font-bold">{viewers ? viewers.length : 'Visto por...'}</span>
+                        <span className="text-xs font-bold mt-1">
+                            {viewers ? viewers.length : (activeStatus.viewers_count || 0)} views
+                        </span>
                     </button>
                 )}
             </div>
-            
-            {/* Viewers List Sheet */}
+
+            {/* Viewers Sheet */}
             {viewers && (
-                <div className="absolute bottom-0 w-full bg-white rounded-t-3xl h-[40%] text-black z-30 animate-in slide-in-from-bottom p-4">
+                <div className="absolute bottom-0 w-full bg-white rounded-t-3xl h-[50%] text-black z-30 animate-in slide-in-from-bottom p-4">
                     <div className="flex justify-between items-center mb-4">
-                         <h3 className="font-bold">Visualizado por {viewers.length}</h3>
-                         <button onClick={() => setViewers(null)}><X size={20}/></button>
+                         <h3 className="font-bold text-lg">Visualizado por {viewers.length}</h3>
+                         <button onClick={() => setViewers(null)}><X size={24}/></button>
                     </div>
-                    <ul className="overflow-y-auto h-full pb-8">
+                    <ul className="overflow-y-auto h-full pb-10">
                         {viewers.map((v, idx) => (
-                            <li key={idx} className="flex items-center gap-3 py-2 border-b border-gray-100">
-                                <img src={v.photo} className="w-10 h-10 rounded-full" />
-                                <span className="font-bold">{v.name}</span>
+                            <li key={idx} className="flex items-center gap-3 py-3 border-b border-gray-100">
+                                <img src={v.photo} className="w-12 h-12 rounded-full bg-gray-200" />
+                                <span className="font-bold text-gray-800">{v.name}</span>
                             </li>
                         ))}
                     </ul>
