@@ -103,14 +103,16 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     return `https://paulohenriquedev.site/api/${path}`;
   };
 
-  const handleDelete = async (mode: 'me' | 'everyone') => {
+  const handleDelete = async () => {
       if(!selectedMsgId) return;
-      try {
-          await api.deleteMessage(selectedMsgId, currentUser.id, mode);
-          setSelectedMsgId(null);
-          loadMessages();
-      } catch(e) {
-          alert("Erro ao deletar");
+      if(confirm("Apagar esta mensagem?")) {
+        try {
+            await api.deleteMessage(selectedMsgId, currentUser.id);
+            setSelectedMsgId(null);
+            setMessages(prev => prev.filter(m => m.id !== selectedMsgId));
+        } catch(e) {
+            alert("Erro ao deletar");
+        }
       }
   }
 
@@ -157,9 +159,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
       <div className="flex-1 overflow-y-auto p-4 space-y-2 relative z-10" ref={scrollRef}>
         {messages.map((msg, idx) => {
           const isMe = String(msg.sender_id) === String(currentUser.id);
-          const isDeleted = msg.is_deleted;
-          
-          if(isDeleted && !isMe) return null;
 
           return (
             <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -167,28 +166,21 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                 onClick={() => isMe ? setSelectedMsgId(msg.id) : null}
                 className={`max-w-[80%] px-2 py-1.5 shadow-sm rounded-lg relative text-sm select-none ${
                   isMe 
-                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none' 
+                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none cursor-pointer' 
                     : 'bg-white text-gray-800 rounded-tl-none'
                 }`}
               >
-                {isDeleted ? (
-                    <div className="italic text-gray-500 flex items-center gap-1">
-                        <span className="block w-3 h-3 border border-gray-400 rounded-full bg-gray-300"></span> 
-                        Mensagem apagada
-                    </div>
-                ) : (
-                    <>
-                        {msg.type === 'audio' ? (
-                        <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
-                        ) : (
-                        <p className="pb-1 px-1">{msg.content}</p>
-                        )}
-                    </>
-                )}
+                <>
+                    {msg.type === 'audio' ? (
+                    <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
+                    ) : (
+                    <p className="pb-1 px-1">{msg.content}</p>
+                    )}
+                </>
                 
                 <div className={`text-[9px] text-gray-500 text-right flex items-center justify-end gap-1 mt-0.5`}>
                    {formatTimeSP(msg.timestamp)}
-                   {isMe && !isDeleted && (
+                   {isMe && (
                        <span className={msg.is_read ? "text-blue-500" : "text-gray-400"}>
                            <svg viewBox="0 0 16 15" width="16" height="11" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.473-.018l5.614-7.533a.419.419 0 0 0-.06-.546zm-6.918 6.566l.492.368a.365.365 0 0 0 .509-.063l.142-.187a.32.32 0 0 1 .484-.033l.358.325a.319.319 0 0 0 .484-.032l.378-.483a.418.418 0 0 0-.036-.541l-1.32-1.266a.33.33 0 0 0-.473.018l-.13.175a.419.419 0 0 0 .06.546l.128.118-1.076-1.034a.42.42 0 0 0-.58.016l-1.32 1.266a.33.33 0 0 0-.473.018l-3.32 4.456a.419.419 0 0 0 .06.546l.478.372a.365.365 0 0 0 .51-.063l2.847-3.82a.32.32 0 0 1 .484-.033l1.192 1.09z"></path></svg>
                        </span>
@@ -229,9 +221,10 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
       {selectedMsgId && (
           <div className="absolute inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setSelectedMsgId(null)}>
               <div className="bg-white rounded-lg shadow-xl p-4 w-64 space-y-3" onClick={e => e.stopPropagation()}>
-                  <h3 className="font-bold text-gray-700 text-center mb-2">Apagar mensagem?</h3>
-                  <button onClick={() => handleDelete('me')} className="w-full p-2 border border-[#008069] text-[#008069] rounded font-bold hover:bg-green-50">Apagar para mim</button>
-                  <button onClick={() => handleDelete('everyone')} className="w-full p-2 bg-[#008069] text-white rounded font-bold hover:opacity-90">Apagar para todos</button>
+                  <h3 className="font-bold text-gray-700 text-center mb-2">Opções</h3>
+                  <button onClick={handleDelete} className="w-full p-2 bg-red-500 text-white rounded font-bold hover:opacity-90 flex items-center justify-center gap-2">
+                      <Trash2 size={18} /> Apagar Mensagem
+                  </button>
                   <button onClick={() => setSelectedMsgId(null)} className="w-full p-2 text-gray-500 text-sm">Cancelar</button>
               </div>
           </div>

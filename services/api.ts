@@ -66,10 +66,10 @@ export const api = {
     });
   },
 
-  deleteMessage: async (message_id: string, user_id: string, mode: 'me' | 'everyone') => {
+  deleteMessage: async (message_id: string, user_id: string) => {
     return request<ApiResponse<any>>('deleteMessage.php', {
       method: 'POST',
-      body: JSON.stringify({ message_id, user_id, mode }),
+      body: JSON.stringify({ message_id, user_id }),
     });
   },
 
@@ -112,7 +112,6 @@ export const api = {
 
   // --- Status ---
   getStatuses: async (user_id: string) => {
-    // Agora passa o user_id para o PHP filtrar por quem sigo
     return request<Status[]>(`getStatuses.php?user_id=${user_id}`);
   },
 

@@ -13,11 +13,10 @@ export interface Message {
   sender_id: string;
   receiver_id: string;
   content: string;
-  type: 'text' | 'audio';
+  type: 'text' | 'audio' | 'image' | 'video';
   timestamp: string;
   is_sent_by_me?: boolean;
   is_read?: boolean;
-  is_deleted?: boolean;
 }
 
 export interface Status {

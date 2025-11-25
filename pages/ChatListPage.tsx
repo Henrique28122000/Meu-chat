@@ -99,24 +99,18 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                     const name = chat.partner_name || "Usuário";
                     const photo = chat.partner_photo || "https://picsum.photos/50/50";
                     
-                    // Lógica de Preview Corrigida
-                    let preview = "Nada por aqui...";
-                    
-                    if (chat.content) {
-                        preview = chat.content;
-                        // Se o backend enviar URLs completas, tentamos identificar
-                        if (preview.includes('uploads/audios') || chat.type === 'audio') preview = '🎤 Mensagem de áudio';
-                        else if (preview.includes('uploads/photos')) preview = '📷 Foto';
-                        else if (preview.includes('uploads/videos')) preview = '📹 Vídeo';
-                    } else if (chat.type === 'audio') {
+                    let preview = "";
+                    if (chat.type === 'audio') {
                         preview = '🎤 Mensagem de áudio';
+                    } else if (chat.type === 'video' || (chat.content && chat.content.includes('uploads/videos'))) {
+                        preview = '📹 Vídeo';
+                    } else if (chat.type === 'image' || (chat.content && chat.content.includes('uploads/photos'))) {
+                        preview = '📷 Foto';
+                    } else {
+                        preview = chat.content || "";
                     }
 
-                    // Se a última mensagem foi apagada (o PHP deve retornar NULL ou string vazia no content se deletado, ou tratar aqui)
-                    // Assumindo que o PHP getMessages retorna o content original mesmo deletado, não temos flag lá. 
-                    // O ideal é o PHP retornar "Mensagem apagada" ou uma flag. 
-                    // Como paliativo, verificamos se está vazio.
-                    if (!chat.content && !chat.type) preview = '🚫 Mensagem apagada';
+                    if (!preview) preview = "...";
 
                     return (
                     <li key={index}>
