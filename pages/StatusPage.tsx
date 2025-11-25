@@ -1,8 +1,8 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Status, User, Viewer, StatusGroup, formatTimeSP } from '../types';
-import { Plus, X, Camera, Video, Mic, Trash2, Eye } from 'lucide-react';
+import { Plus, X, Camera, Video, Trash2, Eye } from 'lucide-react';
 import AudioRecorder from '../components/AudioRecorder';
 import AudioMessage from '../components/AudioMessage';
 
@@ -83,15 +83,19 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           let url = '';
           // Upload logic for media
           if (file) {
+            let res: any;
             if(type === 'image') {
-                const res = await api.uploadPhoto(file as File, currentUser.id);
-                if(res.file_url) url = res.file_url;
+                res = await api.uploadPhoto(file as File, currentUser.id);
             } else if (type === 'video') {
-                const res = await api.uploadVideo(file as File, currentUser.id);
-                if(res.file_url) url = res.file_url;
+                res = await api.uploadVideo(file as File, currentUser.id);
             } else if (type === 'audio') {
-                const res = await api.uploadAudio(file as Blob, currentUser.id);
-                if(res.file_path) url = `https://paulohenriquedev.site/api/${res.file_path}`;
+                res = await api.uploadAudio(file as Blob, currentUser.id);
+            }
+
+            if(res) {
+                // Try both possible keys from PHP
+                if(res.file_url) url = res.file_url;
+                else if(res.file_path) url = `https://paulohenriquedev.site/api/${res.file_path}`;
             }
           }
 

@@ -23,6 +23,10 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Long Press Refs
+  const pressTimer = useRef<any>(null);
+  const isLongPress = useRef(false);
+
   useEffect(() => {
     if (partnerId) {
       api.getUser(partnerId).then(data => {
@@ -105,7 +109,7 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
 
   const handleDelete = async () => {
       if(!selectedMsgId) return;
-      if(confirm("Apagar esta mensagem?")) {
+      if(confirm("Deseja apagar esta mensagem para todos?")) {
         try {
             await api.deleteMessage(selectedMsgId, currentUser.id);
             setSelectedMsgId(null);
@@ -118,6 +122,29 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
 
   const goToProfile = () => {
       if(partnerId) navigate(`/user/${partnerId}`);
+  }
+
+  // --- Logic for Long Press ---
+  const handleTouchStart = (msgId: string, isMe: boolean) => {
+    if(!isMe) return;
+    isLongPress.current = false;
+    pressTimer.current = setTimeout(() => {
+        isLongPress.current = true;
+        setSelectedMsgId(msgId);
+        // Vibrate if supported
+        if (navigator.vibrate) navigator.vibrate(50); 
+    }, 600); // 600ms hold time
+  };
+
+  const handleTouchEnd = () => {
+    if (pressTimer.current) {
+        clearTimeout(pressTimer.current);
+    }
+  };
+
+  // Prevent context menu on long press
+  const handleContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
   }
 
   if (!partnerId) return <div>Chat Inválido</div>;
@@ -163,12 +190,16 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
           return (
             <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div 
-                onClick={() => isMe ? setSelectedMsgId(msg.id) : null}
-                className={`max-w-[80%] px-2 py-1.5 shadow-sm rounded-lg relative text-sm select-none ${
+                onTouchStart={() => handleTouchStart(msg.id, isMe)}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={() => handleTouchStart(msg.id, isMe)}
+                onMouseUp={handleTouchEnd}
+                onContextMenu={handleContextMenu}
+                className={`max-w-[80%] px-2 py-1.5 shadow-sm rounded-lg relative text-sm select-none transition-colors ${
                   isMe 
-                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none cursor-pointer' 
+                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none' 
                     : 'bg-white text-gray-800 rounded-tl-none'
-                }`}
+                } ${selectedMsgId === msg.id ? 'ring-2 ring-red-400' : ''}`}
               >
                 <>
                     {msg.type === 'audio' ? (
@@ -222,8 +253,8 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
           <div className="absolute inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setSelectedMsgId(null)}>
               <div className="bg-white rounded-lg shadow-xl p-4 w-64 space-y-3" onClick={e => e.stopPropagation()}>
                   <h3 className="font-bold text-gray-700 text-center mb-2">Opções</h3>
-                  <button onClick={handleDelete} className="w-full p-2 bg-red-500 text-white rounded font-bold hover:opacity-90 flex items-center justify-center gap-2">
-                      <Trash2 size={18} /> Apagar Mensagem
+                  <button onClick={handleDelete} className="w-full p-3 bg-red-500 text-white rounded font-bold hover:opacity-90 flex items-center justify-center gap-2">
+                      <Trash2 size={18} /> Apagar para todos
                   </button>
                   <button onClick={() => setSelectedMsgId(null)} className="w-full p-2 text-gray-500 text-sm">Cancelar</button>
               </div>
