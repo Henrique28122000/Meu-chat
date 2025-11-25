@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Status, User, Viewer, StatusGroup, formatTimeSP } from '../types';
-import { Plus, X, Camera, Video, Trash2, Eye } from 'lucide-react';
+import { Plus, X, Camera, Video, Trash2, Eye, Send } from 'lucide-react';
 import AudioRecorder from '../components/AudioRecorder';
 import AudioMessage from '../components/AudioMessage';
 
@@ -29,7 +29,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
   const fetchStatuses = async () => {
       try {
-          // Now fetches only friends' statuses via PHP logic
           const data = await api.getStatuses(currentUser.id);
           
           if(Array.isArray(data)) {
@@ -73,43 +72,52 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       fetchStatuses();
   }, [currentUser.id]);
 
-  // --- POSTING LOGIC ---
+  // --- POSTING LOGIC (IGUAL DISCOVER PAGE) ---
   const handlePost = async () => {
-      if(type !== 'text' && !file) return;
-      if(type === 'text' && !caption.trim()) return;
+      if(type !== 'text' && !file) {
+          alert("Selecione um arquivo para postar.");
+          return;
+      }
+      if(type === 'text' && !caption.trim()) {
+          alert("Escreva algo para postar.");
+          return;
+      }
 
       setUploading(true);
       try {
-          let url = '';
-          // Upload logic for media
+          let mediaUrl = '';
+          
           if (file) {
-            let res: any;
-            if(type === 'image') {
-                res = await api.uploadPhoto(file as File, currentUser.id);
-            } else if (type === 'video') {
-                res = await api.uploadVideo(file as File, currentUser.id);
-            } else if (type === 'audio') {
-                res = await api.uploadAudio(file as Blob, currentUser.id);
-            }
-
-            if(res) {
-                // Try both possible keys from PHP
-                if(res.file_url) url = res.file_url;
-                else if(res.file_path) url = `https://paulohenriquedev.site/api/${res.file_path}`;
-            }
+             if (type === 'image') {
+                 const res = await api.uploadPhoto(file as File, currentUser.id);
+                 if(res.file_url) mediaUrl = res.file_url;
+             } else if (type === 'video') {
+                 const res = await api.uploadVideo(file as File, currentUser.id);
+                 if(res.file_url) mediaUrl = res.file_url;
+             } else if (type === 'audio') {
+                 const res = await api.uploadAudio(file as Blob, currentUser.id);
+                 // O audio geralmente retorna path relativo ou absoluto dependendo da api
+                 if(res.file_path) mediaUrl = `https://paulohenriquedev.site/api/${res.file_path}`; 
+                 else if (res.file_url) mediaUrl = res.file_url;
+             }
           }
 
-          // If text only, URL stays empty. If media, URL must exist.
-          if(type === 'text' || url) {
-              await api.postStatus(currentUser.id, url, type, caption);
-              await fetchStatuses(); // Reload list
-              setShowCreator(false);
-              setFile(null); setPreview(null); setCaption('');
-          } else {
-              alert("Erro: Falha no upload da mídia.");
+          // Se for midia e falhou o upload
+          if (type !== 'text' && !mediaUrl) {
+              throw new Error("Falha no upload da mídia");
           }
+
+          await api.postStatus(currentUser.id, mediaUrl, type, caption);
+          
+          // Sucesso
+          setShowCreator(false);
+          setFile(null); 
+          setPreview(null); 
+          setCaption('');
+          await fetchStatuses(); 
+
       } catch(e) {
-          alert("Erro ao postar status");
+          alert("Erro ao postar status. Tente novamente.");
           console.error(e);
       } finally {
           setUploading(false);
@@ -118,9 +126,10 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>, t: 'image' | 'video') => {
       if(e.target.files && e.target.files[0]){
-          setFile(e.target.files[0]);
+          const f = e.target.files[0];
+          setFile(f);
           setType(t);
-          setPreview(URL.createObjectURL(e.target.files[0]));
+          setPreview(URL.createObjectURL(f));
       }
   }
 
@@ -138,12 +147,12 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           
           // Mark as viewed
           if(currentStatus.user_id !== currentUser.id) {
-             api.viewStatus(currentStatus.id, currentUser.id);
+             api.viewStatus(currentStatus.id, currentUser.id).catch(() => {});
           }
 
           setProgress(0);
           
-          // Auto advance timer (5s for images/text, video duration for others)
+          // Auto advance timer
           const duration = currentStatus.media_type === 'video' ? 15000 : 5000; 
           const step = 100 / (duration / 100);
 
@@ -286,7 +295,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
            {/* Other Users Rows */}
            {groupedStatuses.filter(g => g.user_id !== currentUser.id).map((group, idx) => {
-               // Offset index because filtered list
                const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
                const lastStatus = group.statuses[group.statuses.length - 1];
 
@@ -316,11 +324,11 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                   <button onClick={() => setShowCreator(false)}><X /></button>
                   <span className="font-bold">Novo Status</span>
                   <button onClick={handlePost} disabled={uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">
-                      {uploading ? 'Enviando...' : 'Enviar'}
+                      {uploading ? 'Enviando...' : <Send size={18} />}
                   </button>
               </div>
               <div className="flex-1 bg-black flex flex-col items-center justify-center relative">
-                  {!file ? (
+                  {!file && type !== 'text' ? (
                       <div className="flex gap-8">
                           <label onClick={() => setType('image')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
                               <div className="w-16 h-16 rounded-full border border-white flex items-center justify-center hover:bg-white/10 transition"><Camera size={32}/></div>
@@ -342,13 +350,28 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                         {type === 'image' && <img src={preview!} className="max-w-full max-h-[80vh] object-contain" />}
                         {type === 'video' && <video src={preview!} controls className="max-w-full max-h-[80vh]" />}
                         {type === 'audio' && <audio src={preview!} controls className="w-full p-8" />}
-                        <button onClick={() => { setFile(null); setPreview(null); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>
+                        {type !== 'text' && <button onClick={() => { setFile(null); setPreview(null); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>}
                       </>
                   )}
+                  
+                  {type === 'text' && (
+                      <div className="w-full h-full flex items-center justify-center bg-teal-900 p-8">
+                          <textarea 
+                              value={caption}
+                              onChange={e => setCaption(e.target.value)}
+                              placeholder="Digite seu status..."
+                              className="w-full bg-transparent text-white text-3xl font-bold text-center outline-none resize-none placeholder-white/50"
+                              autoFocus
+                          />
+                      </div>
+                  )}
               </div>
-              <div className="p-4 bg-black relative z-10">
-                  <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Adicionar legenda..." className="w-full bg-gray-800 text-white p-3 rounded-full outline-none text-center" />
-              </div>
+              
+              {type !== 'text' && (
+                  <div className="p-4 bg-black relative z-10">
+                      <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Adicionar legenda..." className="w-full bg-gray-800 text-white p-3 rounded-full outline-none text-center" />
+                  </div>
+              )}
           </div>
       )}
 
@@ -388,7 +411,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
             {/* Click Zones for Navigation */}
             <div className="absolute inset-0 flex z-0">
                 <div className="w-1/3 h-full" onClick={prevStatus}></div>
-                <div className="w-1/3 h-full"></div> {/* Center taps could pause */}
+                <div className="w-1/3 h-full"></div> 
                 <div className="w-1/3 h-full" onClick={nextStatus}></div>
             </div>
 
@@ -396,10 +419,11 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                  {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full" />}
                  {activeStatus.media_type === 'video' && <video src={activeStatus.media_url} autoPlay className="max-w-full max-h-full" />}
                  {activeStatus.media_type === 'audio' && <div className="p-10 bg-white/10 rounded-3xl backdrop-blur pointer-events-auto"><AudioMessage src={activeStatus.media_url} isMe={false} /></div>}
+                 {activeStatus.media_type === 'text' && <div className="w-full h-full bg-teal-900 flex items-center justify-center p-8 text-center"><p className="text-2xl font-bold text-white">{activeStatus.caption}</p></div>}
             </div>
             
             <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4 pointer-events-auto">
-                {activeStatus.caption && <p className="text-lg bg-black/30 p-2 rounded mb-4 max-w-[80%] text-center">{activeStatus.caption}</p>}
+                {activeStatus.caption && activeStatus.media_type !== 'text' && <p className="text-lg bg-black/30 p-2 rounded mb-4 max-w-[80%] text-center">{activeStatus.caption}</p>}
                 
                 {activeGroup.user_id === currentUser.id && (
                     <button onClick={loadViewers} className="flex flex-col items-center mt-2">
