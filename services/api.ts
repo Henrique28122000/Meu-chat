@@ -1,32 +1,32 @@
 
-import { User, Message, ApiResponse, Status } from '../types';
+import { User, Message, ApiResponse, Status, Post, Comment, FollowStats } from '../types';
 
 const BASE_URL = 'https://paulohenriquedev.site/api';
 
-// Helper to handle API requests
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE_URL}/${endpoint}`, options);
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
   const data = await response.json();
   return data as T;
 }
 
 export const api = {
-  // Auth & Users
+  // --- Auth & Users ---
   registerUser: async (name: string, email: string, uid: string, photo: string) => {
     return request<ApiResponse<any>>('registerUser.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password: uid, photo, uid }),
     });
   },
 
   getUser: async (user_id: string) => {
-    // Check if response is array or object to be safe
     const data = await request<User | User[]>(`getUser.php?user_id=${user_id}`);
     return Array.isArray(data) ? data[0] : data;
+  },
+
+  getProfileStats: async (my_id: string, target_id: string) => {
+    // Retorna dados do usuário + contadores de seguidores + se eu sigo ele
+    return request<User & FollowStats>(`getUserProfile.php?my_id=${my_id}&target_id=${target_id}`);
   },
 
   searchUsers: async (query: string) => {
@@ -36,12 +36,18 @@ export const api = {
   updateProfile: async (user_id: string, name: string, photo: string) => {
     return request<ApiResponse<any>>('updateProfile.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id, name, photo }),
     });
   },
 
-  // Messages
+  followUser: async (follower_id: string, followed_id: string, action: 'follow' | 'unfollow') => {
+    return request<ApiResponse<any>>('followUser.php', {
+      method: 'POST',
+      body: JSON.stringify({ follower_id, followed_id, action }),
+    });
+  },
+
+  // --- Messages ---
   getChats: async (user_id: string) => {
     return request<any[]>(`getMessages.php?user_id=${user_id}`);
   },
@@ -53,42 +59,61 @@ export const api = {
   sendMessage: async (sender_id: string, receiver_id: string, content: string, type: 'text' | 'audio') => {
     return request<ApiResponse<any>>('sendMessage.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender_id, receiver_id, content, type }),
     });
   },
 
-  // Status
-  getStatuses: async () => {
-    // Ensure you create getStatuses.php on server
-    try {
-        return await request<Status[]>('getStatuses.php');
-    } catch (e) {
-        console.warn("Status API not found or error", e);
-        return [];
-    }
+  // --- Feed & Posts ---
+  getPosts: async (user_id: string) => {
+    // user_id serve para verificar se 'eu' curti os posts
+    return request<Post[]>(`getPosts.php?user_id=${user_id}`);
   },
 
-  postStatus: async (user_id: string, image_url: string, caption: string) => {
-     // Ensure you create postStatus.php on server
+  createPost: async (user_id: string, content: string, media_url: string, media_type: string) => {
+    return request<ApiResponse<any>>('createPost.php', {
+      method: 'POST',
+      body: JSON.stringify({ user_id, content, media_url, media_type }),
+    });
+  },
+
+  likePost: async (user_id: string, post_id: string) => {
+    return request<ApiResponse<any>>('interactPost.php', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'like', user_id, post_id }),
+    });
+  },
+
+  commentPost: async (user_id: string, post_id: string, content: string) => {
+    return request<ApiResponse<any>>('interactPost.php', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'comment', user_id, post_id, content }),
+    });
+  },
+
+  getComments: async (post_id: string) => {
+    return request<Comment[]>(`getComments.php?post_id=${post_id}`);
+  },
+
+  // --- Status ---
+  getStatuses: async () => {
+    return request<Status[]>('getStatuses.php');
+  },
+
+  postStatus: async (user_id: string, media_url: string, media_type: string, caption: string) => {
      return request<ApiResponse<any>>('postStatus.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id, image_url, caption }),
+      body: JSON.stringify({ user_id, media_url, media_type, caption }),
     });
   },
 
-  // Media
-  uploadAudio: async (audioBlob: Blob, sender_id: string, receiver_id: string) => {
+  // --- Uploads ---
+  uploadAudio: async (audioBlob: Blob, sender_id: string, receiver_id: string = '0') => {
     const formData = new FormData();
     formData.append('audio_file', audioBlob, 'audio.mp3');
+    // Para posts, receiver_id pode ser ignorado no PHP ou mande '0'
     formData.append('sender_id', sender_id);
-    formData.append('receiver_id', receiver_id);
-
-    const response = await fetch(`${BASE_URL}/uploadAudio.php`, {
-      method: 'POST',
-      body: formData,
-    });
+    
+    const response = await fetch(`${BASE_URL}/uploadAudio.php`, { method: 'POST', body: formData });
     return response.json();
   },
 
@@ -96,19 +121,21 @@ export const api = {
     const formData = new FormData();
     formData.append('photo_file', file);
     formData.append('user_id', user_id);
+    const response = await fetch(`${BASE_URL}/uploadPhoto.php`, { method: 'POST', body: formData });
+    return response.json() as Promise<ApiResponse<any>>;
+  },
 
-    const response = await fetch(`${BASE_URL}/uploadPhoto.php`, {
-      method: 'POST',
-      body: formData,
-    });
+  uploadVideo: async (file: File, user_id: string) => {
+    const formData = new FormData();
+    formData.append('video_file', file);
+    formData.append('user_id', user_id);
+    const response = await fetch(`${BASE_URL}/uploadVideo.php`, { method: 'POST', body: formData });
     return response.json() as Promise<ApiResponse<any>>;
   },
   
-  // Notifications
   saveFcmToken: async (uid: string, token: string) => {
     return request<ApiResponse<any>>('saveToken.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, token }),
     });
   }

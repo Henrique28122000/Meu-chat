@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
@@ -9,7 +10,6 @@ const UserSearchPage: React.FC = () => {
   const [results, setResults] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Auto-search logic (Debounce)
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (query.trim()) {
@@ -29,13 +29,13 @@ const UserSearchPage: React.FC = () => {
       } else {
           setResults([]);
       }
-    }, 500); // 500ms delay
+    }, 500);
 
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white pb-20">
       <header className="flex-none p-4 gradient-bg sticky top-0 flex items-center gap-3 h-20 shadow-md z-10 rounded-b-3xl">
         <Link to="/" className="p-2 text-white hover:bg-white/20 rounded-full transition">
            <ArrowLeft size={24} />
@@ -62,7 +62,7 @@ const UserSearchPage: React.FC = () => {
             <ul className="space-y-3">
                 {results.map(user => (
                     <li key={user.id} className="flex items-center justify-between p-3.5 bg-gray-50 hover:bg-white border border-gray-100 rounded-2xl shadow-sm transition-all">
-                        <div className="flex items-center space-x-3 overflow-hidden">
+                        <Link to={`/user/${user.id}`} className="flex items-center space-x-3 overflow-hidden flex-1">
                             <img 
                                 src={user.photo || "https://picsum.photos/50/50"} 
                                 alt={user.name} 
@@ -72,26 +72,9 @@ const UserSearchPage: React.FC = () => {
                                 <h3 className="font-bold text-gray-800 truncate text-base">{user.name}</h3>
                                 <p className="text-sm text-gray-500 truncate">{user.email}</p>
                             </div>
-                        </div>
-                        <Link 
-                            to={`/chat/${user.id}`} 
-                            className="text-teal-600 font-bold text-sm px-4 py-2 bg-teal-50 rounded-xl hover:bg-teal-100 transition"
-                        >
-                            Conversar
                         </Link>
                     </li>
                 ))}
-                {results.length === 0 && query && !searching && (
-                    <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
-                        <Search size={48} className="mb-4 opacity-20" />
-                        <p>Nenhum usuário encontrado.</p>
-                    </div>
-                )}
-                {results.length === 0 && !query && (
-                    <div className="text-center text-gray-400 mt-20">
-                         <p className="text-sm">Digite o nome ou email acima.</p>
-                    </div>
-                )}
             </ul>
       </div>
     </div>
