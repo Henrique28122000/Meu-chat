@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { Status, User, Viewer, StatusGroup, formatTimeSP } from '../types';
+import { User, Viewer, StatusGroup, formatTimeSP } from '../types';
 import { Plus, X, Camera, Trash2, Eye, Send } from 'lucide-react';
 
 interface StatusPageProps {
@@ -73,44 +73,58 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
   // --- POSTING LOGIC ---
   const handlePost = async () => {
       if(type === 'image' && !file) {
-          alert("Selecione uma foto para postar.");
+          alert("Selecione uma foto.");
           return;
       }
       if(type === 'text' && !caption.trim()) {
-          alert("Escreva algo para postar.");
+          alert("Digite algum texto.");
           return;
       }
 
       setUploading(true);
+
       try {
           let mediaUrl = '';
           
           if (type === 'image' && file) {
-             const res = await api.uploadPhoto(file, currentUser.id);
-             
-             // Lógica robusta para pegar a URL correta
-             if(res.file_url) {
-                 mediaUrl = res.file_url;
-             } else if (res.file_path) {
-                 mediaUrl = `https://paulohenriquedev.site/api/${res.file_path}`;
-             } else {
-                 throw new Error("Falha ao obter URL da imagem");
+             try {
+                 const res = await api.uploadPhoto(file, currentUser.id);
+                 if(res.file_url) {
+                     mediaUrl = res.file_url;
+                 } else if (res.file_path) {
+                     mediaUrl = `https://paulohenriquedev.site/api/${res.file_path}`;
+                 } else {
+                     throw new Error("Falha no upload da imagem");
+                 }
+             } catch (uploadError) {
+                 alert("Erro no upload da imagem. Tente novamente.");
+                 setUploading(false);
+                 return;
              }
           }
 
-          await api.postStatus(currentUser.id, mediaUrl, type, caption);
+          const response = await api.postStatus(currentUser.id, mediaUrl, type, caption);
           
-          // Sucesso
-          setShowCreator(false);
-          setFile(null); 
-          setPreview(null); 
-          setCaption('');
-          setType('image');
-          await fetchStatuses(); 
+          // Check for success or specific error message
+          if(response && response.status === 'success') {
+              setShowCreator(false);
+              setFile(null); 
+              setPreview(null); 
+              setCaption('');
+              setType('image');
+              await fetchStatuses(); 
+          } else {
+              alert(response.message || "Erro desconhecido ao salvar status.");
+          }
 
-      } catch(e) {
-          alert("Erro ao postar status. Tente novamente.");
+      } catch(e: any) {
           console.error(e);
+          // Show the actual error message if available (from our PHP catch block)
+          if (e.message) {
+              alert("Erro: " + e.message);
+          } else {
+              alert("Erro de conexão com o servidor.");
+          }
       } finally {
           setUploading(false);
       }
@@ -137,15 +151,14 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
           const currentStatus = group.statuses[currentStatusIndex];
           
-          // Mark as viewed
-          if(currentStatus.user_id !== currentUser.id) {
+          if(currentStatus.user_id !== currentUser.id && !currentStatus.viewed_by_me) {
              api.viewStatus(currentStatus.id, currentUser.id).catch(() => {});
+             currentStatus.viewed_by_me = true; 
           }
 
           setProgress(0);
           
-          // Duration logic
-          const duration = 5000; // 5 seconds for photo/text
+          const duration = 5000;
           const step = 100 / (duration / 100);
 
           timer = setInterval(() => {
@@ -170,7 +183,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           setCurrentStatusIndex(prev => prev + 1);
           setProgress(0);
       } else {
-          // Next User Group
           if (viewingGroupIndex < groupedStatuses.length - 1) {
               setViewingGroupIndex(prev => (prev !== null ? prev + 1 : null));
               setCurrentStatusIndex(0);
@@ -186,7 +198,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           setCurrentStatusIndex(prev => prev - 1);
           setProgress(0);
       } else {
-           // Previous User Group
            if(viewingGroupIndex !== null && viewingGroupIndex > 0) {
                setViewingGroupIndex(prev => (prev !== null ? prev - 1 : null));
                setCurrentStatusIndex(0); 
@@ -209,27 +220,22 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       const status = group.statuses[currentStatusIndex];
 
       if(confirm("Excluir este status?")) {
-          // Call API
           await api.deleteStatus(status.id, currentUser.id);
           
-          // Update Local State IMMUTABLY to force re-render
           const newGroups = [...groupedStatuses];
           const groupIndex = viewingGroupIndex; 
           
-          // Remove status from the group
           newGroups[groupIndex] = {
               ...newGroups[groupIndex],
               statuses: newGroups[groupIndex].statuses.filter(s => s.id !== status.id)
           };
 
-          // If group is empty, remove group
           if(newGroups[groupIndex].statuses.length === 0) {
               newGroups.splice(groupIndex, 1);
               setGroupedStatuses(newGroups);
               closeViewer();
           } else {
               setGroupedStatuses(newGroups);
-              // Navigate
               if(currentStatusIndex >= newGroups[groupIndex].statuses.length) {
                   setCurrentStatusIndex(Math.max(0, newGroups[groupIndex].statuses.length - 1));
               } 
@@ -245,7 +251,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       setViewers(v);
   }
 
-  // --- RENDER ---
   const activeGroup = viewingGroupIndex !== null ? groupedStatuses[viewingGroupIndex] : null;
   const activeStatus = activeGroup ? activeGroup.statuses[currentStatusIndex] : null;
 
@@ -259,7 +264,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-           {/* My Status Row */}
            <div className="p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
                const myGroupIndex = groupedStatuses.findIndex(g => g.user_id === currentUser.id);
                if(myGroupIndex !== -1) {
@@ -283,7 +287,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
            <h2 className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Atualizações recentes</h2>
 
-           {/* Other Users Rows */}
            {groupedStatuses.filter(g => g.user_id !== currentUser.id).map((group, idx) => {
                const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
                const lastStatus = group.statuses[group.statuses.length - 1];
@@ -307,7 +310,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
            })}
       </div>
 
-      {/* --- CREATOR MODAL (Simplified) --- */}
       {showCreator && (
           <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in slide-in-from-bottom">
               <div className="flex justify-between p-4 bg-black/50 absolute top-0 w-full z-10 text-white">
@@ -359,10 +361,8 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           </div>
       )}
 
-       {/* --- VIEWER OVERLAY --- */}
       {activeGroup && activeStatus && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
-            {/* Progress Bars */}
             <div className="absolute top-2 left-2 right-2 flex gap-1 z-20">
                 {activeGroup.statuses.map((st, i) => (
                     <div key={st.id} className="h-1 bg-white/30 flex-1 rounded-full overflow-hidden">
@@ -392,7 +392,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 </div>
             </div>
 
-            {/* Click Zones for Navigation */}
             <div className="absolute inset-0 flex z-0">
                 <div className="w-1/3 h-full" onClick={prevStatus}></div>
                 <div className="w-1/3 h-full"></div> 
@@ -402,9 +401,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
             <div className="flex-1 flex items-center justify-center relative bg-gray-900 pointer-events-none">
                  {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full" />}
                  {activeStatus.media_type === 'text' && <div className="w-full h-full bg-teal-900 flex items-center justify-center p-8 text-center"><p className="text-2xl font-bold text-white">{activeStatus.caption}</p></div>}
-                 
-                 {/* Legacy support for existing videos/audio in viewer, but no creation */}
-                 {activeStatus.media_type === 'video' && <video src={activeStatus.media_url} autoPlay className="max-w-full max-h-full" />}
             </div>
             
             <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4 pointer-events-auto">
@@ -420,7 +416,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 )}
             </div>
 
-            {/* Viewers Sheet */}
             {viewers && (
                 <div className="absolute bottom-0 w-full bg-white rounded-t-3xl h-[50%] text-black z-30 animate-in slide-in-from-bottom p-4">
                     <div className="flex justify-between items-center mb-4">
