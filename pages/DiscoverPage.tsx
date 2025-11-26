@@ -99,7 +99,7 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
                   { id: 'all', label: 'Tudo' },
                   { id: 'image', label: 'Fotos' },
                   { id: 'video', label: 'Vídeos' },
-                  { id: 'audio', label: 'Áudios' },
+                
                   { id: 'text', label: 'Texto' },
               ].map(f => (
                   <button
