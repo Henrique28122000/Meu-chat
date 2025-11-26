@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageSquare, Share2, Play, Trash2, Send } from 'lucide-react';
+import { Heart, MessageSquare, Play, Trash2, Send, UserPlus, UserCheck } from 'lucide-react';
 import { Post, User, formatTimeSP, Comment } from '../types';
 import { api } from '../services/api';
 import AudioMessage from './AudioMessage';
+import { Link } from 'react-router-dom';
 
 interface PostCardProps {
   post: Post;
@@ -16,6 +17,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const [commentsCount, setCommentsCount] = useState(post.comments_count);
   const [deleted, setDeleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Follow State
+  const [isFollowing, setIsFollowing] = useState(post.is_following);
   
   // Comments Logic
   const [showComments, setShowComments] = useState(false);
@@ -37,6 +41,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       setLikesCount(prev => !newLiked ? prev + 1 : prev - 1);
     }
   };
+
+  const handleFollow = async () => {
+      const action = isFollowing ? 'unfollow' : 'follow';
+      setIsFollowing(!isFollowing);
+      try {
+          await api.followUser(currentUser.id, post.user_id, action);
+      } catch (e) {
+          setIsFollowing(!isFollowing); // Revert on error
+      }
+  }
 
   const toggleComments = async () => {
       setShowComments(!showComments);
@@ -86,29 +100,41 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   if(deleted) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
       <div className="flex items-center justify-between p-3">
-        <div className="flex items-center">
-            <img 
-                src={post.photo || "https://picsum.photos/40/40"} 
-                className="w-8 h-8 rounded-full object-cover mr-2 bg-gray-200" 
-            />
+        <div className="flex items-center gap-3">
+            <Link to={`/user/${post.user_id}`}>
+                <img 
+                    src={post.photo || "https://picsum.photos/40/40"} 
+                    className="w-10 h-10 rounded-full object-cover bg-gray-200 border border-gray-100" 
+                />
+            </Link>
             <div>
-                <h3 className="font-bold text-sm text-gray-900">{post.name}</h3>
-                <span className="text-[10px] text-gray-400">{formatTimeSP(post.timestamp)}</span>
+                <Link to={`/user/${post.user_id}`} className="font-bold text-sm text-gray-900 hover:underline">{post.name}</Link>
+                <span className="block text-[10px] text-gray-400">{formatTimeSP(post.timestamp)}</span>
             </div>
+            
+            {/* Botão Seguir Dinâmico */}
+            {post.user_id !== currentUser.id && !isFollowing && (
+                <button 
+                    onClick={handleFollow}
+                    className="ml-2 px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full hover:bg-blue-100 transition-colors flex items-center gap-1"
+                >
+                    <UserPlus size={12} /> Seguir
+                </button>
+            )}
         </div>
         {post.user_id === currentUser.id && (
-            <button onClick={handleDelete} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+            <button onClick={handleDelete} className="text-gray-400 hover:text-red-500 p-2"><Trash2 size={16} /></button>
         )}
       </div>
 
-      <div className="px-3 pb-2">
-        {post.content && <p className="text-gray-800 text-sm mb-2 whitespace-pre-wrap">{post.content}</p>}
+      <div className="px-4 pb-2">
+        {post.content && <p className="text-gray-800 text-sm mb-2 whitespace-pre-wrap leading-relaxed">{post.content}</p>}
       </div>
 
       {post.media_type === 'image' && post.media_url && (
-        <img src={post.media_url} className="w-full h-auto max-h-[400px] object-cover bg-gray-100" />
+        <img src={post.media_url} className="w-full h-auto max-h-[450px] object-cover bg-gray-50" />
       )}
 
       {post.media_type === 'video' && post.media_url && (
@@ -116,7 +142,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
             <video 
                 ref={videoRef}
                 src={post.media_url} 
-                className="w-full h-auto max-h-[400px]" 
+                className="w-full h-auto max-h-[450px]" 
                 loop 
                 playsInline
                 onEnded={() => setIsPlaying(false)}
@@ -132,25 +158,25 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       )}
 
       {post.media_type === 'audio' && post.media_url && (
-         <div className="px-3 pb-3">
-             <div className="bg-gray-100 rounded-lg p-2">
+         <div className="px-4 pb-4">
+             <div className="bg-gradient-to-r from-gray-100 to-gray-50 rounded-xl p-3 border border-gray-200">
                  <AudioMessage src={post.media_url} isMe={false} />
              </div>
          </div>
       )}
 
-      <div className="flex items-center justify-between px-4 py-2 mt-1 border-t border-gray-50">
+      <div className="flex items-center justify-between px-4 py-3 mt-1">
         <div className="flex items-center space-x-6">
           <button 
             onClick={handleLike}
-            className={`flex items-center space-x-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex items-center space-x-1.5 transition-transform active:scale-90 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <Heart size={20} fill={liked ? "currentColor" : "none"} />
+            <Heart size={22} fill={liked ? "currentColor" : "none"} />
             <span className="text-sm font-semibold">{likesCount}</span>
           </button>
 
-          <button onClick={toggleComments} className="flex items-center space-x-1 text-gray-500 hover:text-[#008069]">
-            <MessageSquare size={20} />
+          <button onClick={toggleComments} className="flex items-center space-x-1.5 text-gray-500 hover:text-[#008069]">
+            <MessageSquare size={22} />
             <span className="text-sm font-semibold">{commentsCount}</span>
           </button>
         </div>
@@ -163,21 +189,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
                     value={newComment}
                     onChange={e => setNewComment(e.target.value)}
                     placeholder="Escreva um comentário..."
-                    className="flex-1 px-3 py-2 text-sm rounded-full border border-gray-200 focus:outline-none focus:border-[#008069]"
+                    className="flex-1 px-4 py-2 text-sm rounded-full border border-gray-200 focus:outline-none focus:border-[#008069] focus:ring-1 focus:ring-[#008069]"
                   />
-                  <button onClick={sendComment} disabled={!newComment.trim()} className="p-2 bg-[#008069] text-white rounded-full disabled:opacity-50">
-                      <Send size={16} />
+                  <button onClick={sendComment} disabled={!newComment.trim()} className="p-2 bg-[#008069] text-white rounded-full disabled:opacity-50 hover:bg-[#006e5a] transition">
+                      <Send size={18} />
                   </button>
               </div>
               
-              <div className="space-y-3 max-h-40 overflow-y-auto">
+              <div className="space-y-3 max-h-48 overflow-y-auto">
                   {loadingComments ? <p className="text-xs text-center text-gray-400">Carregando...</p> : 
                    comments.map((c, i) => (
                       <div key={i} className="flex gap-2">
                           <img src={c.photo || "https://picsum.photos/30/30"} className="w-8 h-8 rounded-full bg-gray-200" />
-                          <div className="flex-1 bg-white p-2 rounded-r-xl rounded-bl-xl text-sm shadow-sm">
-                              <span className="font-bold text-xs block text-gray-900">{c.name}</span>
-                              <p className="text-gray-700">{c.content}</p>
+                          <div className="flex-1 bg-white p-2.5 rounded-2xl rounded-tl-none text-sm shadow-sm border border-gray-100">
+                              <span className="font-bold text-xs block text-gray-900 mb-0.5">{c.name}</span>
+                              <p className="text-gray-700 leading-snug">{c.content}</p>
                           </div>
                       </div>
                    ))

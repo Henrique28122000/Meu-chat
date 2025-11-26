@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { User, Viewer, StatusGroup, formatTimeSP } from '../types';
-import { Plus, X, Camera, Trash2, Eye, Send } from 'lucide-react';
+import { Plus, X, Camera, Trash2, Eye, Send, Video, Mic, Type } from 'lucide-react';
+import AudioRecorder from '../components/AudioRecorder';
 
 interface StatusPageProps {
   currentUser: User;
@@ -19,18 +20,21 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
   
   // Creator State
   const [showCreator, setShowCreator] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [type, setType] = useState<'image' | 'text'>('image');
+  const [file, setFile] = useState<File | Blob | null>(null);
+  const [type, setType] = useState<'image' | 'text' | 'video' | 'audio'>('image');
   const [caption, setCaption] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Video Ref for Viewer
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
 
   const fetchStatuses = async () => {
       try {
           const data = await api.getStatuses(currentUser.id);
           
           if(Array.isArray(data)) {
-              // Group by User
               const groups: {[key: string]: StatusGroup} = {};
               
               data.forEach(st => {
@@ -49,12 +53,10 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                   }
               });
 
-              // Convert to array, put "Me" first
               let groupArray = Object.values(groups);
               const myGroup = groupArray.find(g => g.user_id === currentUser.id);
               const others = groupArray.filter(g => g.user_id !== currentUser.id);
               
-              // Sort others: Unviewed first, then alphabetical
               others.sort((a, b) => {
                   if (a.hasUnviewed && !b.hasUnviewed) return -1;
                   if (!a.hasUnviewed && b.hasUnviewed) return 1;
@@ -72,8 +74,8 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
   // --- POSTING LOGIC ---
   const handlePost = async () => {
-      if(type === 'image' && !file) {
-          alert("Selecione uma foto.");
+      if(type !== 'text' && !file) {
+          alert("Selecione um arquivo.");
           return;
       }
       if(type === 'text' && !caption.trim()) {
@@ -86,18 +88,22 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       try {
           let mediaUrl = '';
           
-          if (type === 'image' && file) {
+          if (file) {
              try {
-                 const res = await api.uploadPhoto(file, currentUser.id);
+                 let res: any;
+                 if (type === 'image') res = await api.uploadPhoto(file as File, currentUser.id);
+                 else if (type === 'video') res = await api.uploadVideo(file as File, currentUser.id);
+                 else if (type === 'audio') res = await api.uploadAudio(file as Blob, currentUser.id);
+
                  if(res.file_url) {
                      mediaUrl = res.file_url;
                  } else if (res.file_path) {
                      mediaUrl = `https://paulohenriquedev.site/api/${res.file_path}`;
                  } else {
-                     throw new Error("Servidor não retornou URL da imagem.");
+                     throw new Error("Servidor não retornou URL.");
                  }
              } catch (uploadError: any) {
-                 alert("Erro no upload da imagem: " + (uploadError.message || "Tente novamente."));
+                 alert("Erro no upload: " + (uploadError.message || "Tente novamente."));
                  setUploading(false);
                  return;
              }
@@ -107,35 +113,32 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           
           if(response && response.status === 'success') {
               setShowCreator(false);
-              setFile(null); 
-              setPreview(null); 
-              setCaption('');
-              setType('image');
+              setFile(null); setPreview(null); setCaption(''); setType('image');
               await fetchStatuses(); 
           } else {
               alert(response.message || "Erro desconhecido ao salvar status.");
           }
 
       } catch(e: any) {
-          console.error(e);
-          // Show the actual error message if available
-          if (e.message) {
-              alert("Erro: " + e.message);
-          } else {
-              alert("Erro de conexão com o servidor.");
-          }
+          alert("Erro: " + (e.message || "Erro de conexão"));
       } finally {
           setUploading(false);
       }
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>, mediaType: 'image' | 'video') => {
       if(e.target.files && e.target.files[0]){
           const f = e.target.files[0];
           setFile(f);
-          setType('image');
+          setType(mediaType);
           setPreview(URL.createObjectURL(f));
       }
+  }
+
+  const handleAudioRecord = (blob: Blob) => {
+      setFile(blob);
+      setType('audio');
+      setPreview(URL.createObjectURL(blob));
   }
 
   // --- VIEWER LOGIC ---
@@ -157,9 +160,18 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
           setProgress(0);
           
-          const duration = 5000;
-          const step = 100 / (duration / 100);
+          // Logic for Video/Audio Duration
+          let duration = 5000; // Default 5s for images/text
+          if (currentStatus.media_type === 'video' && videoRef.current) {
+              // Wait for metadata or handle duration differently. For simplicity, we pause timer until end.
+              // We'll rely on onEnded event.
+              return; 
+          }
+          if (currentStatus.media_type === 'audio' && audioRef.current) {
+              return;
+          }
 
+          const step = 100 / (duration / 100);
           timer = setInterval(() => {
               setProgress(old => {
                   if (old >= 100) {
@@ -220,7 +232,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
       if(confirm("Excluir este status?")) {
           await api.deleteStatus(status.id, currentUser.id);
-          
           const newGroups = [...groupedStatuses];
           const groupIndex = viewingGroupIndex; 
           
@@ -256,103 +267,126 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
   return (
     <div className="flex flex-col h-full bg-white pb-20">
       <header className="px-5 py-4 bg-[#008069] text-white shadow-sm z-10 sticky top-0 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Status</h1>
-          <button onClick={() => setShowCreator(true)} className="p-1 rounded-full hover:bg-white/10 transition">
-              <Camera size={22} />
+          <h1 className="text-xl font-bold">Stories</h1>
+          <button onClick={() => setShowCreator(true)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+              <Camera size={20} />
           </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-           <div className="p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
-               const myGroupIndex = groupedStatuses.findIndex(g => g.user_id === currentUser.id);
-               if(myGroupIndex !== -1) {
-                   setViewingGroupIndex(myGroupIndex);
-                   setCurrentStatusIndex(0);
-               } else {
-                   setShowCreator(true);
-               }
-           }}>
-               <div className="relative">
-                   <img src={currentUser.photo} className="w-14 h-14 rounded-full object-cover" />
-                   <div className="absolute bottom-0 right-0 bg-[#008069] rounded-full p-0.5 border-2 border-white">
-                       <Plus size={14} className="text-white"/>
+      <div className="flex-1 overflow-y-auto p-4">
+           {/* Horizontal Scroll / Cards Layout */}
+           <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+               {/* My Status Card */}
+               <div className="min-w-[100px] h-[160px] relative rounded-xl overflow-hidden cursor-pointer shadow-md group" 
+                    onClick={() => {
+                       const myGroupIndex = groupedStatuses.findIndex(g => g.user_id === currentUser.id);
+                       if(myGroupIndex !== -1) {
+                           setViewingGroupIndex(myGroupIndex);
+                           setCurrentStatusIndex(0);
+                       } else {
+                           setShowCreator(true);
+                       }
+                    }}>
+                   <img src={currentUser.photo} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition"></div>
+                   <div className="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/80 to-transparent">
+                       <p className="text-white text-xs font-bold truncate">Meu Story</p>
+                   </div>
+                   <div className="absolute top-2 left-2 bg-white rounded-full p-1 shadow">
+                       <Plus size={16} className="text-[#008069]" />
                    </div>
                </div>
-               <div className="flex-1 border-b border-gray-100 pb-4 pt-2">
-                   <h3 className="font-bold text-gray-900">Meu Status</h3>
-                   <p className="text-xs text-gray-500">Toque para adicionar ou ver</p>
-               </div>
+
+               {/* Other Statuses */}
+               {groupedStatuses.filter(g => g.user_id !== currentUser.id).map((group, idx) => {
+                   const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
+                   const lastStatus = group.statuses[group.statuses.length - 1];
+                   
+                   // Preview image (or placeholder if text/audio)
+                   let previewImg = group.user_photo; 
+                   if(lastStatus.media_type === 'image') previewImg = lastStatus.media_url;
+                   
+                   return (
+                       <div key={group.user_id} className={`min-w-[100px] h-[160px] relative rounded-xl overflow-hidden cursor-pointer shadow-md group border-2 ${group.hasUnviewed ? 'border-[#008069]' : 'border-transparent'}`}
+                            onClick={() => {
+                               setViewingGroupIndex(originalIndex);
+                               setCurrentStatusIndex(0);
+                            }}>
+                           <img src={previewImg} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition"></div>
+                           <div className="absolute top-2 left-2 p-0.5 rounded-full bg-[#008069] border border-white">
+                               <img src={group.user_photo} className="w-6 h-6 rounded-full" />
+                           </div>
+                           <div className="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/80 to-transparent">
+                               <p className="text-white text-xs font-bold truncate">{group.user_name}</p>
+                           </div>
+                       </div>
+                   )
+               })}
            </div>
 
-           <h2 className="px-4 py-2 text-xs font-bold text-gray-500 uppercase">Atualizações recentes</h2>
-
-           {groupedStatuses.filter(g => g.user_id !== currentUser.id).map((group, idx) => {
-               const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
-               const lastStatus = group.statuses[group.statuses.length - 1];
-
-               return (
-                   <div key={group.user_id} className="p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
-                       setViewingGroupIndex(originalIndex);
-                       setCurrentStatusIndex(0);
-                   }}>
-                       <div className={`p-[2px] rounded-full border-2 ${group.hasUnviewed ? 'border-[#008069]' : 'border-gray-300'}`}>
-                           <img src={group.user_photo} className="w-12 h-12 rounded-full object-cover" />
-                       </div>
-                       <div className="flex-1 border-b border-gray-100 pb-4 pt-2">
-                           <h3 className="font-bold text-gray-900">{group.user_name}</h3>
-                           <p className="text-xs text-gray-500">
-                               {formatTimeSP(lastStatus.timestamp)}
-                           </p>
-                       </div>
-                   </div>
-               )
-           })}
+           <div className="mt-4">
+               <h3 className="font-bold text-gray-800 text-lg mb-2">Atualizações</h3>
+               {groupedStatuses.length <= 1 && <p className="text-gray-400 text-sm">Nenhum status recente dos seus amigos.</p>}
+               {/* Fallback list for detailed view if needed, or keeping it clean with just cards */}
+           </div>
       </div>
 
       {showCreator && (
           <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in slide-in-from-bottom">
               <div className="flex justify-between p-4 bg-black/50 absolute top-0 w-full z-10 text-white">
                   <button onClick={() => setShowCreator(false)}><X /></button>
-                  <span className="font-bold">Novo Status</span>
+                  <span className="font-bold">Novo Story</span>
                   <button onClick={handlePost} disabled={uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">
-                      {uploading ? 'Enviando...' : <Send size={18} />}
+                      {uploading ? '...' : <Send size={18} />}
                   </button>
               </div>
-              <div className="flex-1 bg-black flex flex-col items-center justify-center relative">
-                  {!file && type === 'image' ? (
-                      <div className="flex gap-16">
+              
+              <div className="flex-1 bg-gray-900 flex flex-col items-center justify-center relative">
+                  {!file && type !== 'text' ? (
+                      <div className="grid grid-cols-2 gap-8">
                           <label onClick={() => setType('image')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
-                              <div className="w-20 h-20 rounded-full border border-white flex items-center justify-center hover:bg-white/10 transition"><Camera size={40}/></div>
-                              <span className="text-sm font-bold">Foto</span>
-                              <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+                              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center"><Camera size={32}/></div>
+                              <span className="text-xs">Foto</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={e => handleFile(e, 'image')} />
+                          </label>
+                          <label onClick={() => setType('video')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
+                              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center"><Video size={32}/></div>
+                              <span className="text-xs">Vídeo</span>
+                              <input type="file" accept="video/*" className="hidden" onChange={e => handleFile(e, 'video')} />
                           </label>
                           <div onClick={() => setType('text')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
-                               <div className="w-20 h-20 rounded-full border border-white flex items-center justify-center hover:bg-white/10 transition font-serif text-3xl font-bold">T</div>
-                               <span className="text-sm font-bold">Texto</span>
+                               <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center"><Type size={32}/></div>
+                               <span className="text-xs">Texto</span>
+                          </div>
+                          <div className="flex flex-col items-center text-white gap-2 cursor-pointer relative">
+                               <div className="scale-75"><AudioRecorder onSend={handleAudioRecord} /></div>
+                               <span className="text-xs mt-1">Áudio</span>
                           </div>
                       </div>
                   ) : (
                       <>
-                        {type === 'image' && <img src={preview!} className="max-w-full max-h-[80vh] object-contain" />}
-                        {type === 'image' && <button onClick={() => { setFile(null); setPreview(null); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>}
-                        
+                        {type === 'image' && <img src={preview!} className="max-w-full max-h-[70vh]" />}
+                        {type === 'video' && <video src={preview!} controls className="max-w-full max-h-[70vh]" />}
+                        {type === 'audio' && <audio src={preview!} controls className="w-full px-10" />}
                         {type === 'text' && (
-                            <div className="w-full h-full flex items-center justify-center bg-teal-900 p-8">
-                                <textarea 
-                                    value={caption}
-                                    onChange={e => setCaption(e.target.value)}
-                                    placeholder="Digite seu status..."
-                                    className="w-full bg-transparent text-white text-3xl font-bold text-center outline-none resize-none placeholder-white/50"
-                                    autoFocus
-                                />
-                                <button onClick={() => { setType('image'); setCaption(''); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>
-                            </div>
+                            <textarea 
+                                value={caption}
+                                onChange={e => setCaption(e.target.value)}
+                                placeholder="Digite..."
+                                className="w-full h-full bg-teal-900 text-white text-3xl font-bold text-center outline-none resize-none pt-40"
+                                autoFocus
+                            />
+                        )}
+                        
+                        {type !== 'text' && (
+                            <button onClick={() => { setFile(null); setPreview(null); setType('image'); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>
                         )}
                       </>
                   )}
               </div>
               
-              {type === 'image' && (
+              {type !== 'text' && file && (
                   <div className="p-4 bg-black relative z-10">
                       <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Adicionar legenda..." className="w-full bg-gray-800 text-white p-3 rounded-full outline-none text-center" />
                   </div>
@@ -399,11 +433,33 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
             <div className="flex-1 flex items-center justify-center relative bg-gray-900 pointer-events-none">
                  {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full" />}
+                 {activeStatus.media_type === 'video' && (
+                     <video 
+                        ref={videoRef}
+                        src={activeStatus.media_url} 
+                        className="max-w-full max-h-full pointer-events-auto" 
+                        autoPlay 
+                        onEnded={() => { setProgress(100); setTimeout(nextStatus, 100); }}
+                     />
+                 )}
+                 {activeStatus.media_type === 'audio' && (
+                     <div className="w-full px-10 pointer-events-auto bg-black/50 p-6 rounded-xl backdrop-blur-md">
+                         <div className="text-white text-center mb-4 font-bold">Áudio de Status</div>
+                         <audio 
+                            ref={audioRef}
+                            src={activeStatus.media_url} 
+                            controls 
+                            autoPlay 
+                            className="w-full"
+                            onEnded={() => { setProgress(100); setTimeout(nextStatus, 100); }}
+                         />
+                     </div>
+                 )}
                  {activeStatus.media_type === 'text' && <div className="w-full h-full bg-teal-900 flex items-center justify-center p-8 text-center"><p className="text-2xl font-bold text-white">{activeStatus.caption}</p></div>}
             </div>
             
             <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4 pointer-events-auto">
-                {activeStatus.caption && activeStatus.media_type === 'image' && <p className="text-lg bg-black/30 p-2 rounded mb-4 max-w-[80%] text-center">{activeStatus.caption}</p>}
+                {activeStatus.caption && activeStatus.media_type !== 'text' && <p className="text-lg bg-black/30 p-2 rounded mb-4 max-w-[80%] text-center">{activeStatus.caption}</p>}
                 
                 {activeGroup.user_id === currentUser.id && (
                     <button onClick={loadViewers} className="flex flex-col items-center mt-2">

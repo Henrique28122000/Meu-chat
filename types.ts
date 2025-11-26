@@ -57,6 +57,7 @@ export interface Post {
   comments_count: number;
   timestamp: string;
   liked_by_me: boolean;
+  is_following?: boolean;
 }
 
 export interface Comment {

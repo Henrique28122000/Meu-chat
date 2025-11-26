@@ -1,10 +1,10 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Post, User } from '../types';
 import PostCard from '../components/PostCard';
 import AudioRecorder from '../components/AudioRecorder';
-import { Plus, Image as ImageIcon, Video, Mic, Type, X, Send } from 'lucide-react';
+import { Plus, Image as ImageIcon, Video, Mic, X } from 'lucide-react';
 
 interface DiscoverPageProps {
   currentUser: User;
@@ -14,6 +14,7 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'image' | 'video' | 'audio' | 'text'>('all');
   
   // Creation State
   const [postText, setPostText] = useState('');
@@ -89,23 +90,52 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
       }
   }
 
+  const filteredPosts = posts.filter(post => {
+      if (filter === 'all') return true;
+      return post.media_type === filter;
+  });
+
   return (
     <div className="flex flex-col h-full bg-gray-100 pb-20">
-      <header className="px-5 py-4 bg-[#008069] text-white shadow-sm z-10 sticky top-0">
-          <h1 className="text-xl font-bold">Descobrir</h1>
+      <header className="bg-[#008069] pt-4 pb-2 text-white shadow-md z-10 sticky top-0 rounded-b-xl">
+          <h1 className="text-xl font-bold px-5 mb-3">Descobrir</h1>
+          
+          {/* Filters Bar */}
+          <div className="flex gap-2 overflow-x-auto px-4 pb-2 no-scrollbar">
+              {[
+                  { id: 'all', label: 'Tudo' },
+                  { id: 'image', label: 'Fotos' },
+                  { id: 'video', label: 'Vídeos' },
+                  { id: 'audio', label: 'Áudios' },
+                  { id: 'text', label: 'Texto' },
+              ].map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setFilter(f.id as any)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${
+                        filter === f.id ? 'bg-white text-[#008069]' : 'bg-[#006e5a] text-white/80 hover:bg-white/10'
+                    }`}
+                  >
+                      {f.label}
+                  </button>
+              ))}
+          </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4">
            {loading ? (
                <div className="flex justify-center p-10"><div className="w-8 h-8 border-4 border-[#008069] border-t-transparent rounded-full animate-spin"></div></div>
            ) : (
-               posts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} />)
+               filteredPosts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} />)
+           )}
+           {!loading && filteredPosts.length === 0 && (
+               <p className="text-center text-gray-400 mt-10">Nenhum post encontrado nesta categoria.</p>
            )}
       </div>
 
       <button 
         onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-[#008069] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#006e5a] transition-all z-40"
+        className="fixed bottom-24 right-6 w-14 h-14 bg-[#008069] text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#006e5a] transition-all z-40 active:scale-90"
       >
           <Plus size={28} />
       </button>
