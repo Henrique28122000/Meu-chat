@@ -73,7 +73,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       fetchStatuses();
   }, [currentUser.id]);
 
-  // --- POSTING LOGIC ---
   const handlePost = async () => {
       if(creatorMode !== 'text' && !file) {
           alert("Conteúdo vazio.");
@@ -88,7 +87,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
       try {
           let mediaUrl = '';
-          let mediaType = creatorMode === 'camera' ? 'image' : creatorMode; // 'text', 'video', 'audio'
+          let mediaType = creatorMode === 'camera' ? 'image' : creatorMode; 
           
           // Upload logic based on type
           if (file) {
@@ -168,10 +167,9 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
           setProgress(0);
           
-          // Logic for Video/Audio Duration
-          let duration = 5000; // Default 5s
+          let duration = 5000; 
           if (currentStatus.media_type === 'video' && videoRef.current) return; 
-          if (currentStatus.media_type === 'audio') return; // Audio has its own ended event
+          if (currentStatus.media_type === 'audio') return; 
 
           const step = 100 / (duration / 100);
           timer = setInterval(() => {
@@ -276,9 +274,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4">
-           {/* Horizontal Scroll / Cards Layout */}
            <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-               {/* My Status Card */}
                <div className="min-w-[100px] h-[160px] relative rounded-xl overflow-hidden cursor-pointer shadow-md group border border-gray-100 dark:border-gray-800" 
                     onClick={() => {
                        const myGroupIndex = groupedStatuses.findIndex(g => g.user_id === currentUser.id);
@@ -299,12 +295,10 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                    </div>
                </div>
 
-               {/* Other Statuses */}
                {groupedStatuses.filter(g => g.user_id !== currentUser.id).map((group, idx) => {
                    const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
                    const lastStatus = group.statuses[group.statuses.length - 1];
                    
-                   // Preview
                    let previewImg = group.user_photo; 
                    if(lastStatus.media_type === 'image') previewImg = lastStatus.media_url;
                    
@@ -333,10 +327,8 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
            </div>
       </div>
 
-      {/* --- CREATOR MODAL --- */}
       {showCreator && (
           <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col animate-in slide-in-from-bottom">
-              {/* Header */}
               <div className="flex justify-between items-center p-4 bg-black/40 text-white z-20">
                   <button onClick={() => setShowCreator(false)}><X size={24}/></button>
                   <span className="font-bold text-lg">Criar Status</span>
@@ -345,10 +337,8 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                   </button>
               </div>
               
-              {/* Main Content Area */}
               <div className="flex-1 flex flex-col items-center justify-center relative bg-gray-900 overflow-hidden">
                   
-                  {/* Mode: TEXT */}
                   {creatorMode === 'text' && (
                       <textarea 
                           value={caption}
@@ -359,7 +349,15 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                       />
                   )}
 
-                  {/* Mode: PREVIEW (Image/Video/Audio) */}
+                  {creatorMode === 'audio' && !file && (
+                      <div className="flex flex-col items-center justify-center h-full">
+                          <h3 className="text-white mb-6 font-bold text-xl">Gravar Áudio</h3>
+                          <div className="scale-150">
+                              <AudioRecorder onSend={handleAudioRecorded} />
+                          </div>
+                      </div>
+                  )}
+
                   {file && (
                       <div className="relative w-full h-full flex items-center justify-center bg-black">
                           {creatorMode === 'camera' && <img src={preview!} className="max-w-full max-h-full object-contain" />}
@@ -373,18 +371,8 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                           <button onClick={() => { setFile(null); setPreview(null); setCreatorMode('text'); }} className="absolute top-4 right-4 bg-black/60 p-2 rounded-full text-white z-20 hover:bg-red-500/80 transition"><Trash2 size={20}/></button>
                       </div>
                   )}
-
-                  {/* Mode Selection Grid (Only if no file selected and not text mode active/typing) */}
-                  {!file && creatorMode === 'text' && !caption && (
-                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                         <div className="pointer-events-auto grid grid-cols-2 gap-6 p-6">
-                            {/* Text is default bg, so buttons switch to other modes */}
-                         </div>
-                     </div>
-                  )}
               </div>
 
-              {/* Bottom Tabs / Inputs */}
               {!file && (
                   <div className="bg-black p-6 pb-8">
                       <div className="flex justify-around items-center">
@@ -405,18 +393,14 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                               <input type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, 'video')} />
                           </label>
 
-                          <div className={`relative flex flex-col items-center gap-1 ${creatorMode === 'audio' ? 'text-teal-400' : 'text-gray-400'}`}>
-                              <div className="absolute -top-14 opacity-0 pointer-events-auto hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                  <AudioRecorder onSend={handleAudioRecorded} />
-                              </div>
+                          <button onClick={() => setCreatorMode('audio')} className={`flex flex-col items-center gap-1 ${creatorMode === 'audio' ? 'text-teal-400' : 'text-gray-400'}`}>
                               <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-1"><Mic size={20}/></div>
                               <span className="text-xs font-bold">Áudio</span>
-                          </div>
+                          </button>
                       </div>
                   </div>
               )}
 
-              {/* Caption Input for Image/Video */}
               {(creatorMode === 'camera' || creatorMode === 'video') && file && (
                   <div className="p-3 bg-black">
                       <input 
@@ -430,10 +414,8 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           </div>
       )}
 
-      {/* --- VIEWER OVERLAY --- */}
       {activeGroup && activeStatus && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
-            {/* Progress Bars */}
             <div className="absolute top-2 left-2 right-2 flex gap-1 z-20">
                 {activeGroup.statuses.map((st, i) => (
                     <div key={st.id} className="h-1 bg-white/30 flex-1 rounded-full overflow-hidden">
@@ -447,7 +429,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 ))}
             </div>
 
-            {/* Header */}
             <div className="flex items-center justify-between p-4 pt-6 text-white z-10">
                 <div className="flex items-center gap-3">
                     <img src={activeGroup.user_photo} className="w-10 h-10 rounded-full border border-white/50" />
@@ -464,14 +445,12 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 </div>
             </div>
 
-            {/* Navigation Areas */}
             <div className="absolute inset-0 flex z-0">
                 <div className="w-1/3 h-full" onClick={prevStatus}></div>
                 <div className="w-1/3 h-full"></div> 
                 <div className="w-1/3 h-full" onClick={nextStatus}></div>
             </div>
 
-            {/* Media Content */}
             <div className="flex-1 flex items-center justify-center relative bg-gray-900 pointer-events-none">
                  {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full object-contain" />}
                  
@@ -510,7 +489,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                  )}
             </div>
             
-            {/* Caption (for non-text) & Stats */}
             <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4 pointer-events-auto">
                 {activeStatus.caption && activeStatus.media_type !== 'text' && <p className="text-lg bg-black/40 backdrop-blur-md p-3 rounded-xl mb-4 max-w-[85%] text-center">{activeStatus.caption}</p>}
                 
@@ -524,7 +502,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 )}
             </div>
 
-            {/* Viewer List Modal */}
             {viewers && (
                 <div className="absolute bottom-0 w-full bg-white dark:bg-gray-800 rounded-t-3xl h-[50%] text-black dark:text-white z-30 animate-in slide-in-from-bottom p-4 shadow-2xl">
                     <div className="flex justify-between items-center mb-4">

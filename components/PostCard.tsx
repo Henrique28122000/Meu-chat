@@ -13,8 +13,8 @@ interface PostCardProps {
 
 const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const [liked, setLiked] = useState(post.liked_by_me);
-  const [likesCount, setLikesCount] = useState(Number(post.likes_count)); // Force number
-  const [commentsCount, setCommentsCount] = useState(Number(post.comments_count)); // Force number
+  const [likesCount, setLikesCount] = useState(Number(post.likes_count));
+  const [commentsCount, setCommentsCount] = useState(Number(post.comments_count));
   const [deleted, setDeleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   
@@ -65,26 +65,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
 
   const sendComment = async () => {
       if(!newComment.trim()) return;
+      
+      const commentToSend = newComment;
+      setNewComment(''); // Clear input immediately
+      
       try {
-          await api.commentPost(currentUser.id, post.id, newComment);
-          setNewComment('');
+          await api.commentPost(currentUser.id, post.id, commentToSend);
           setCommentsCount(prev => Number(prev) + 1);
-          // Optimistic update
-          setComments([...comments, {
-              id: Math.random().toString(),
-              user_id: currentUser.id,
-              name: currentUser.name,
-              photo: currentUser.photo,
-              content: newComment,
-              timestamp: new Date().toISOString()
-          }]);
-      } catch(e) {}
+          
+          // CRITICAL FIX: Load all comments from server to ensure sync (old + new)
+          await loadComments();
+          
+      } catch(e) {
+          alert("Erro ao comentar");
+          setNewComment(commentToSend); // Restore on error
+      }
   }
 
   const handleReply = (userName: string) => {
       setNewComment(`@${userName} `);
       commentInputRef.current?.focus();
-      // Scroll to input
       commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -120,7 +120,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
                 {post.media_type === 'audio' && <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold">Publicou um áudio</span>}
             </div>
             
-            {/* Botão Seguir Dinâmico */}
             {post.user_id !== currentUser.id && !isFollowing && (
                 <button 
                     onClick={handleFollow}
@@ -135,12 +134,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
         )}
       </div>
 
-      {/* Content */}
       <div className="px-3 pb-2">
         {post.content && <p className="text-gray-800 dark:text-gray-200 text-sm mb-2 whitespace-pre-wrap leading-relaxed">{post.content}</p>}
       </div>
 
-      {/* Media */}
       {post.media_type === 'image' && post.media_url && (
         <img src={post.media_url} className="w-full h-auto max-h-[500px] object-cover bg-gray-50" loading="lazy" />
       )}
@@ -173,7 +170,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
          </div>
       )}
 
-      {/* Actions */}
       <div className="flex items-center gap-4 px-4 py-3">
         <button 
             onClick={handleLike}
@@ -194,14 +190,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       <div className="px-4 pb-4">
           <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">{likesCount} curtidas</p>
           
-          {/* Instagram Style Comments */}
           {commentsCount > 0 && !showComments && (
               <button onClick={loadComments} className="text-gray-500 dark:text-gray-400 text-sm mb-2 hover:text-gray-700 dark:hover:text-gray-300">
                   Ver todos os {commentsCount} comentários
               </button>
           )}
 
-          {/* Comment List */}
           {showComments && (
               <div className="space-y-3 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
                   {loadingComments ? (
@@ -238,12 +232,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
               </div>
           )}
 
-          {/* Timestamp */}
           <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-3">
               {new Date(post.timestamp).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })} • {formatTimeSP(post.timestamp)}
           </p>
 
-          {/* Add Comment Input */}
           <div className="flex items-center gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">
               <img src={currentUser.photo} className="w-7 h-7 rounded-full object-cover" />
               <input 
