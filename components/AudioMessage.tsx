@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
 
@@ -59,7 +60,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
       <button 
         onClick={togglePlay}
         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-95 flex-shrink-0 ${
-            isMe ? 'bg-white text-teal-600' : 'bg-teal-500 text-white'
+            isMe ? 'bg-white text-teal-600 dark:bg-teal-900 dark:text-teal-200' : 'bg-teal-500 text-white'
         }`}
       >
         {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
@@ -78,8 +79,8 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
                         key={i}
                         className={`w-1.5 rounded-full transition-all duration-200 ${
                             isMe 
-                                ? (isPlayed ? 'bg-teal-800' : 'bg-teal-200/60') 
-                                : (isPlayed ? 'bg-teal-500' : 'bg-gray-300')
+                                ? (isPlayed ? 'bg-teal-800 dark:bg-teal-300' : 'bg-teal-200/60 dark:bg-teal-900/40') 
+                                : (isPlayed ? 'bg-teal-500' : 'bg-gray-300 dark:bg-gray-600')
                         } ${isPlaying ? 'animate-pulse' : ''}`}
                         style={{ 
                             height: isPlaying ? `${Math.max(height * Math.random(), 20)}%` : `${height}%`,
@@ -91,7 +92,7 @@ const AudioMessage: React.FC<AudioMessageProps> = ({ src, isMe }) => {
         </div>
 
         {/* Timer */}
-        <div className={`flex justify-between text-[10px] font-medium px-0.5 ${isMe ? 'text-teal-900/70' : 'text-gray-500'}`}>
+        <div className={`flex justify-between text-[10px] font-medium px-0.5 ${isMe ? 'text-teal-900/70 dark:text-teal-200/70' : 'text-gray-500 dark:text-gray-400'}`}>
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
         </div>

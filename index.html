@@ -1,10 +1,15 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
     <title>PH Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {
@@ -26,9 +31,15 @@
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(10px);
       }
+      .dark .glass-header {
+        background: rgba(17, 24, 39, 0.95);
+      }
       
       .gradient-bg {
         background: linear-gradient(135deg, #008069 0%, #00a884 100%); /* Premium WhatsApp Green */
+      }
+      .dark .gradient-bg {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
       }
     </style>
   <script type="importmap">
@@ -44,8 +55,8 @@
 }
 </script>
 </head>
-  <body class="bg-[#d1d7db] text-gray-900 h-[100dvh] w-screen overflow-hidden flex justify-center select-none">
-    <div id="root" class="h-full w-full max-w-md bg-white shadow-2xl relative flex flex-col sm:rounded-[2rem] sm:my-4 sm:h-[calc(100%-2rem)] overflow-hidden border border-gray-100"></div>
+  <body class="bg-[#d1d7db] dark:bg-gray-900 text-gray-900 dark:text-white h-[100dvh] w-screen overflow-hidden flex justify-center select-none transition-colors duration-200">
+    <div id="root" class="h-full w-full max-w-md bg-white dark:bg-gray-950 shadow-2xl relative flex flex-col sm:rounded-[2rem] sm:my-4 sm:h-[calc(100%-2rem)] overflow-hidden border border-gray-100 dark:border-gray-800 transition-colors duration-200"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

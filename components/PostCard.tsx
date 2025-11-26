@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageSquare, Play, Trash2, Send, UserPlus, UserCheck } from 'lucide-react';
+import { Heart, MessageSquare, Play, Trash2, Send, UserPlus, UserCheck, CornerDownRight } from 'lucide-react';
 import { Post, User, formatTimeSP, Comment } from '../types';
 import { api } from '../services/api';
 import AudioMessage from './AudioMessage';
@@ -26,6 +26,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  const commentInputRef = React.useRef<HTMLInputElement>(null);
 
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
@@ -82,6 +83,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       } catch(e) {}
   }
 
+  const handleReply = (userName: string) => {
+      setNewComment(`@${userName} `);
+      commentInputRef.current?.focus();
+  }
+
   const toggleVideo = () => {
       if(videoRef.current) {
           if(isPlaying) videoRef.current.pause();
@@ -100,17 +106,17 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   if(deleted) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 overflow-hidden transition-colors">
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-3">
             <Link to={`/user/${post.user_id}`}>
                 <img 
                     src={post.photo || "https://picsum.photos/40/40"} 
-                    className="w-10 h-10 rounded-full object-cover bg-gray-200 border border-gray-100" 
+                    className="w-10 h-10 rounded-full object-cover bg-gray-200 border border-gray-100 dark:border-gray-700" 
                 />
             </Link>
             <div>
-                <Link to={`/user/${post.user_id}`} className="font-bold text-sm text-gray-900 hover:underline">{post.name}</Link>
+                <Link to={`/user/${post.user_id}`} className="font-bold text-sm text-gray-900 dark:text-gray-100 hover:underline">{post.name}</Link>
                 <span className="block text-[10px] text-gray-400">{formatTimeSP(post.timestamp)}</span>
             </div>
             
@@ -118,7 +124,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
             {post.user_id !== currentUser.id && !isFollowing && (
                 <button 
                     onClick={handleFollow}
-                    className="ml-2 px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full hover:bg-blue-100 transition-colors flex items-center gap-1"
+                    className="ml-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
                 >
                     <UserPlus size={12} /> Seguir
                 </button>
@@ -130,7 +136,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       </div>
 
       <div className="px-4 pb-2">
-        {post.content && <p className="text-gray-800 text-sm mb-2 whitespace-pre-wrap leading-relaxed">{post.content}</p>}
+        {post.content && <p className="text-gray-800 dark:text-gray-200 text-sm mb-2 whitespace-pre-wrap leading-relaxed">{post.content}</p>}
       </div>
 
       {post.media_type === 'image' && post.media_url && (
@@ -159,7 +165,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
 
       {post.media_type === 'audio' && post.media_url && (
          <div className="px-4 pb-4">
-             <div className="bg-gradient-to-r from-gray-100 to-gray-50 rounded-xl p-3 border border-gray-200">
+             <div className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
                  <AudioMessage src={post.media_url} isMe={false} />
              </div>
          </div>
@@ -169,13 +175,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
         <div className="flex items-center space-x-6">
           <button 
             onClick={handleLike}
-            className={`flex items-center space-x-1.5 transition-transform active:scale-90 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex items-center space-x-1.5 transition-transform active:scale-90 ${liked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           >
             <Heart size={22} fill={liked ? "currentColor" : "none"} />
             <span className="text-sm font-semibold">{likesCount}</span>
           </button>
 
-          <button onClick={toggleComments} className="flex items-center space-x-1.5 text-gray-500 hover:text-[#008069]">
+          <button onClick={toggleComments} className="flex items-center space-x-1.5 text-gray-500 dark:text-gray-400 hover:text-[#008069]">
             <MessageSquare size={22} />
             <span className="text-sm font-semibold">{commentsCount}</span>
           </button>
@@ -183,13 +189,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       </div>
 
       {showComments && (
-          <div className="bg-gray-50 p-3 border-t border-gray-100 animate-in slide-in-from-top-2">
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-3 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-2">
               <div className="flex gap-2 mb-3">
                   <input 
+                    ref={commentInputRef}
                     value={newComment}
                     onChange={e => setNewComment(e.target.value)}
                     placeholder="Escreva um comentário..."
-                    className="flex-1 px-4 py-2 text-sm rounded-full border border-gray-200 focus:outline-none focus:border-[#008069] focus:ring-1 focus:ring-[#008069]"
+                    className="flex-1 px-4 py-2 text-sm rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:border-[#008069] focus:ring-1 focus:ring-[#008069]"
                   />
                   <button onClick={sendComment} disabled={!newComment.trim()} className="p-2 bg-[#008069] text-white rounded-full disabled:opacity-50 hover:bg-[#006e5a] transition">
                       <Send size={18} />
@@ -199,11 +206,19 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
               <div className="space-y-3 max-h-48 overflow-y-auto">
                   {loadingComments ? <p className="text-xs text-center text-gray-400">Carregando...</p> : 
                    comments.map((c, i) => (
-                      <div key={i} className="flex gap-2">
+                      <div key={i} className="flex gap-2 group">
                           <img src={c.photo || "https://picsum.photos/30/30"} className="w-8 h-8 rounded-full bg-gray-200" />
-                          <div className="flex-1 bg-white p-2.5 rounded-2xl rounded-tl-none text-sm shadow-sm border border-gray-100">
-                              <span className="font-bold text-xs block text-gray-900 mb-0.5">{c.name}</span>
-                              <p className="text-gray-700 leading-snug">{c.content}</p>
+                          <div className="flex-1 bg-white dark:bg-gray-800 p-2.5 rounded-2xl rounded-tl-none text-sm shadow-sm border border-gray-100 dark:border-gray-700 relative">
+                              <span className="font-bold text-xs block text-gray-900 dark:text-gray-200 mb-0.5">{c.name}</span>
+                              <p className="text-gray-700 dark:text-gray-300 leading-snug">{c.content}</p>
+                              
+                              <button 
+                                onClick={() => handleReply(c.name)}
+                                className="absolute top-2 right-2 text-gray-400 hover:text-[#008069] opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Responder"
+                              >
+                                  <CornerDownRight size={14} />
+                              </button>
                           </div>
                       </div>
                    ))

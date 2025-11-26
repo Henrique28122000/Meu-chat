@@ -71,7 +71,7 @@ export const api = {
     return request<Message[]>(`getChatMessages.php?user1_id=${user1_id}&user2_id=${user2_id}`);
   },
 
-  sendMessage: async (sender_id: string, receiver_id: string, content: string, type: 'text' | 'audio') => {
+  sendMessage: async (sender_id: string, receiver_id: string, content: string, type: 'text' | 'audio' | 'image' | 'video') => {
     return request<ApiResponse<any>>('sendMessage.php', {
       method: 'POST',
       body: JSON.stringify({ sender_id, receiver_id, content, type }),

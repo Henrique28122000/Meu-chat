@@ -8,7 +8,7 @@ const BottomNav: React.FC = () => {
   const currentPath = location.pathname;
 
   const isActive = (path: string) => {
-    return currentPath === path ? "text-[#008069] scale-110" : "text-gray-400 hover:text-gray-600";
+    return currentPath === path ? "text-[#008069] scale-110" : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300";
   };
 
   if (currentPath === '/login' || currentPath.startsWith('/chat/')) {
@@ -16,7 +16,7 @@ const BottomNav: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 h-16 flex items-center justify-around px-2 pb-2">
+    <div className="fixed bottom-0 left-0 w-full bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-50 h-16 flex items-center justify-around px-2 pb-2 transition-colors">
       <Link to="/" className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${isActive('/')}`}>
         <MessageCircle size={24} fill={currentPath === '/' ? "currentColor" : "none"} />
         <span className="text-[10px] font-bold mt-1">Conversas</span>

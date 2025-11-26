@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, Paperclip, MoreVertical, Trash2, Camera } from 'lucide-react';
+import { ArrowLeft, Phone, Video, Paperclip, MoreVertical, Trash2, Camera, Image as ImageIcon } from 'lucide-react';
 import { api } from '../services/api';
 import { User, Message, formatTimeSP } from '../types';
 import AudioRecorder from '../components/AudioRecorder';
@@ -22,6 +22,7 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   const [sending, setSending] = useState(false);
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Long Press Refs
   const pressTimer = useRef<any>(null);
@@ -101,6 +102,25 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     }
   };
 
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!partnerId || !e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    
+    setSending(true);
+    try {
+       const res = await api.uploadPhoto(file, currentUser.id);
+       if(res.file_url) {
+           playSentSound();
+           await api.sendMessage(currentUser.id, partnerId, res.file_url, 'image');
+           loadMessages();
+       }
+    } catch(err) {
+        alert("Erro ao enviar imagem");
+    } finally {
+        setSending(false);
+    }
+  };
+
   const getAudioSrc = (path: string) => {
     if (path.startsWith('blob:')) return path;
     if (path.startsWith('http')) return path;
@@ -142,7 +162,6 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
     }
   };
 
-  // Prevent context menu on long press
   const handleContextMenu = (e: React.MouseEvent) => {
       e.preventDefault();
   }
@@ -150,16 +169,16 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
   if (!partnerId) return <div>Chat Inválido</div>;
 
   return (
-    <div className="flex flex-col h-full bg-[#e5ddd5] overflow-hidden relative">
-      {/* WhatsApp Background */}
-      <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
+    <div className="flex flex-col h-full bg-[#e5ddd5] dark:bg-gray-950 overflow-hidden relative">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-[0.06] pointer-events-none dark:opacity-[0.03] dark:invert" style={{
           backgroundImage: `url("https://i.pinimg.com/originals/97/c0/07/97c00759d90d786d9b6096d274ad3e07.png")`,
           backgroundRepeat: 'repeat',
           backgroundSize: '400px'
       }}></div>
 
       {/* Header */}
-      <header className="flex-none bg-[#008069] text-white p-2 flex items-center justify-between shadow-md z-20 h-16">
+      <header className="flex-none gradient-bg text-white p-2 flex items-center justify-between shadow-md z-20 h-16">
         <div className="flex items-center">
           <Link to="/" className="mr-1 p-2 rounded-full active:bg-white/20">
             <ArrowLeft size={22} />
@@ -197,19 +216,23 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
                 onContextMenu={handleContextMenu}
                 className={`max-w-[80%] px-2 py-1.5 shadow-sm rounded-lg relative text-sm select-none transition-colors ${
                   isMe 
-                    ? 'bg-[#d9fdd3] text-gray-800 rounded-tr-none' 
-                    : 'bg-white text-gray-800 rounded-tl-none'
+                    ? 'bg-[#d9fdd3] dark:bg-teal-900 text-gray-800 dark:text-gray-100 rounded-tr-none' 
+                    : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-none'
                 } ${selectedMsgId === msg.id ? 'ring-2 ring-red-400' : ''}`}
               >
                 <>
                     {msg.type === 'audio' ? (
-                    <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
+                        <AudioMessage src={getAudioSrc(msg.content)} isMe={isMe} />
+                    ) : msg.type === 'image' ? (
+                        <div className="pb-1">
+                            <img src={msg.content} alt="Foto" className="rounded-lg max-h-60 max-w-full object-cover" />
+                        </div>
                     ) : (
-                    <p className="pb-1 px-1">{msg.content}</p>
+                        <p className="pb-1 px-1">{msg.content}</p>
                     )}
                 </>
                 
-                <div className={`text-[9px] text-gray-500 text-right flex items-center justify-end gap-1 mt-0.5`}>
+                <div className={`text-[9px] ${isMe ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'} text-right flex items-center justify-end gap-1 mt-0.5`}>
                    {formatTimeSP(msg.timestamp)}
                    {isMe && (
                        <span className={msg.is_read ? "text-blue-500" : "text-gray-400"}>
@@ -223,17 +246,23 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
         })}
       </div>
 
+      {/* Input Area */}
       <div className="flex-none p-2 bg-transparent z-20 pb-2 px-2 flex gap-1 items-end">
-        <div className="flex-1 bg-white rounded-3xl flex items-end p-1 shadow-sm min-h-[45px]">
-            <button className="p-2 text-gray-400"><Paperclip size={20} /></button>
+        <div className="flex-1 bg-white dark:bg-gray-800 rounded-3xl flex items-end p-1 shadow-sm min-h-[45px]">
+            <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><Paperclip size={20} /></button>
             <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Mensagem"
-                className="flex-1 bg-transparent py-2.5 px-2 focus:outline-none text-gray-700 placeholder-gray-400 resize-none max-h-24 overflow-y-auto"
+                className="flex-1 bg-transparent py-2.5 px-2 focus:outline-none text-gray-700 dark:text-white placeholder-gray-400 resize-none max-h-24 overflow-y-auto"
                 rows={1}
             />
-             <div className="p-2"><Camera size={20} className="text-gray-400" /></div>
+             <div className="p-2 flex gap-1">
+                 <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageSelect} />
+                 <button onClick={() => fileInputRef.current?.click()} className="text-gray-400 hover:text-teal-600 transition-colors">
+                     <Camera size={20} />
+                 </button>
+             </div>
         </div>
 
         {inputText.length > 0 ? (
@@ -251,12 +280,12 @@ const ChatRoomPage: React.FC<ChatRoomPageProps> = ({ currentUser }) => {
 
       {selectedMsgId && (
           <div className="absolute inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={() => setSelectedMsgId(null)}>
-              <div className="bg-white rounded-lg shadow-xl p-4 w-64 space-y-3" onClick={e => e.stopPropagation()}>
-                  <h3 className="font-bold text-gray-700 text-center mb-2">Opções</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-64 space-y-3" onClick={e => e.stopPropagation()}>
+                  <h3 className="font-bold text-gray-700 dark:text-gray-200 text-center mb-2">Opções</h3>
                   <button onClick={handleDelete} className="w-full p-3 bg-red-500 text-white rounded font-bold hover:opacity-90 flex items-center justify-center gap-2">
                       <Trash2 size={18} /> Apagar para todos
                   </button>
-                  <button onClick={() => setSelectedMsgId(null)} className="w-full p-2 text-gray-500 text-sm">Cancelar</button>
+                  <button onClick={() => setSelectedMsgId(null)} className="w-full p-2 text-gray-500 dark:text-gray-400 text-sm">Cancelar</button>
               </div>
           </div>
       )}

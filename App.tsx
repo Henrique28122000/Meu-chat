@@ -19,6 +19,16 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Dark Mode Init
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   useEffect(() => {
     const storedUser = localStorage.getItem('ph_chat_user');
     if (storedUser) {
@@ -62,10 +72,10 @@ const App: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="flex h-full items-center justify-center bg-[#e5ddd5]"><div className="animate-spin rounded-full h-12 w-12 border-4 border-[#008069] border-t-transparent"></div></div>;
+  if (loading) return <div className="flex h-full items-center justify-center bg-[#e5ddd5] dark:bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-4 border-[#008069] border-t-transparent"></div></div>;
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-gray-100">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-gray-100 dark:bg-gray-900">
         <Routes>
             <Route path="/login" element={!user ? <LoginPage onLogin={setUser} /> : <Navigate to="/" />} />
             

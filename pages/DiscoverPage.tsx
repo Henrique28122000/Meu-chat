@@ -3,8 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Post, User } from '../types';
 import PostCard from '../components/PostCard';
-import AudioRecorder from '../components/AudioRecorder';
-import { Plus, Image as ImageIcon, Video, Mic, X } from 'lucide-react';
+import { Plus, Image as ImageIcon, Video, X, Camera } from 'lucide-react';
 
 interface DiscoverPageProps {
   currentUser: User;
@@ -18,10 +17,11 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
   
   // Creation State
   const [postText, setPostText] = useState('');
-  const [postType, setPostType] = useState<'text' | 'image' | 'video' | 'audio'>('text');
+  const [postType, setPostType] = useState<'text' | 'image' | 'video'>('text');
   const [postFile, setPostFile] = useState<File | Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchFeed = async () => {
     try {
@@ -47,12 +47,6 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
       }
   }
 
-  const handleAudioRecord = (blob: Blob) => {
-      setPostFile(blob);
-      setPostType('audio');
-      setPreviewUrl(URL.createObjectURL(blob));
-  }
-
   const resetPost = () => {
       setShowCreateModal(false);
       setPostText('');
@@ -73,12 +67,10 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
              } else if (postType === 'video') {
                  const res = await api.uploadVideo(postFile as File, currentUser.id);
                  if(res.file_url) mediaUrl = res.file_url;
-             } else if (postType === 'audio') {
-                 const res = await api.uploadAudio(postFile as Blob, currentUser.id);
-                 if(res.file_path) mediaUrl = `https://paulohenriquedev.site/api/${res.file_path}`;
              }
           }
 
+          // @ts-ignore
           await api.createPost(currentUser.id, postText, mediaUrl, postType);
           fetchFeed();
           resetPost();
@@ -96,8 +88,8 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
   });
 
   return (
-    <div className="flex flex-col h-full bg-gray-100 pb-20">
-      <header className="bg-[#008069] pt-4 pb-2 text-white shadow-md z-10 sticky top-0 rounded-b-xl">
+    <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-900 pb-20">
+      <header className="gradient-bg pt-4 pb-2 text-white shadow-md z-10 sticky top-0 rounded-b-xl">
           <h1 className="text-xl font-bold px-5 mb-3">Descobrir</h1>
           
           {/* Filters Bar */}
@@ -142,10 +134,10 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
 
       {showCreateModal && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in slide-in-from-bottom">
-              <div className="bg-white w-full max-w-md h-[80%] sm:h-auto sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl">
-                  <div className="flex justify-between items-center p-4 border-b border-gray-100">
+              <div className="bg-white dark:bg-gray-800 w-full max-w-md h-[80%] sm:h-auto sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl transition-colors">
+                  <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
                       <button onClick={resetPost}><X size={24} className="text-gray-400" /></button>
-                      <h3 className="font-bold text-gray-800">Nova Publicação</h3>
+                      <h3 className="font-bold text-gray-800 dark:text-gray-200">Nova Publicação</h3>
                       <button onClick={handlePublish} disabled={uploading} className="font-bold text-[#008069] disabled:opacity-50">
                           {uploading ? '...' : 'Postar'}
                       </button>
@@ -153,7 +145,7 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
 
                   <div className="flex-1 p-4 overflow-y-auto">
                       <textarea 
-                          className="w-full h-32 resize-none outline-none text-lg text-gray-700 placeholder-gray-300" 
+                          className="w-full h-32 resize-none outline-none text-lg text-gray-700 dark:text-gray-200 bg-transparent placeholder-gray-300 dark:placeholder-gray-600" 
                           placeholder="No que você está pensando?"
                           value={postText}
                           onChange={e => setPostText(e.target.value)}
@@ -163,30 +155,28 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
                           <div className="mt-4 relative rounded-xl overflow-hidden bg-black max-h-60 flex justify-center">
                               {postType === 'image' && <img src={previewUrl} className="max-h-60 object-contain" />}
                               {postType === 'video' && <video src={previewUrl} controls className="max-h-60" />}
-                              {postType === 'audio' && <audio src={previewUrl} controls className="w-full mt-10" />}
                               <button onClick={() => { setPostFile(null); setPreviewUrl(null); setPostType('text'); }} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full"><X size={16}/></button>
                           </div>
                       )}
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-b-2xl">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-b-2xl">
                       <div className="flex justify-between items-center gap-2">
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-100 transition">
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                               <ImageIcon className="text-[#008069] mb-1" />
-                              <span className="text-[10px] font-bold text-gray-600">Foto</span>
+                              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Foto</span>
                               <input type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'image')} />
                           </label>
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-100 transition">
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                               <Video className="text-[#008069] mb-1" />
-                              <span className="text-[10px] font-bold text-gray-600">Vídeo</span>
+                              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Vídeo</span>
                               <input type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, 'video')} />
                           </label>
-                          <div className="flex-1 flex flex-col items-center justify-center p-3 bg-white rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-100 transition relative overflow-hidden">
-                              <div className="scale-75 origin-center">
-                                  <AudioRecorder onSend={handleAudioRecord} />
-                              </div>
-                              <span className="text-[10px] font-bold text-gray-600 mt-1">Áudio</span>
-                          </div>
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                              <Camera className="text-[#008069] mb-1" />
+                              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Câmera</span>
+                              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFileSelect(e, 'image')} />
+                          </label>
                       </div>
                   </div>
               </div>

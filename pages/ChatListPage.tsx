@@ -55,9 +55,9 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white pb-20">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 pb-20">
       {/* Premium Header */}
-      <header className="px-5 py-4 bg-[#008069] text-white shadow-md z-10 sticky top-0">
+      <header className="px-5 py-4 gradient-bg text-white shadow-md z-10 sticky top-0">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-xl font-bold tracking-wide">PH Chat</h1>
             <div className="flex items-center gap-5">
@@ -85,7 +85,7 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
             </div>
         ) : chats.length === 0 ? (
             <div className="text-center mt-20 opacity-60 px-6">
-                <h3 className="text-lg font-bold text-gray-700">Sem conversas ainda</h3>
+                <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300">Sem conversas ainda</h3>
                 <p className="text-gray-500 text-sm mb-6">Encontre amigos para papear.</p>
                 <Link to="/search" className="text-white font-bold px-6 py-2 bg-[#008069] rounded-full shadow">
                     Buscar Contatos
@@ -114,23 +114,23 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
 
                     return (
                     <li key={index}>
-                        <Link to={`/chat/${partnerId}`} className="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <Link to={`/chat/${partnerId}`} className="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <div onClick={(e) => goToProfile(e, partnerId)} className="relative cursor-pointer">
                             <img 
                             src={photo} 
                             alt={name} 
-                            className="w-12 h-12 rounded-full object-cover mr-4 bg-gray-200"
+                            className="w-12 h-12 rounded-full object-cover mr-4 bg-gray-200 dark:bg-gray-700"
                             />
                         </div>
-                        <div className="flex-1 min-w-0 border-b border-gray-100 pb-3">
+                        <div className="flex-1 min-w-0 border-b border-gray-100 dark:border-gray-800 pb-3">
                             <div className="flex justify-between items-center mb-1">
-                                <h3 className="text-base font-bold text-gray-900 truncate">{name}</h3>
+                                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{name}</h3>
                                 <span className={`text-xs ${chat.unread > 0 ? 'text-[#00a884] font-bold' : 'text-gray-400'}`}>
                                     {formatTimeSP(chat.timestamp)}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <p className={`text-sm truncate flex-1 ${chat.unread > 0 ? 'font-bold text-gray-800' : 'text-gray-500'}`}>
+                                <p className={`text-sm truncate flex-1 ${chat.unread > 0 ? 'font-bold text-gray-800 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
                                     {isMe && <span className="mr-1 text-gray-400 text-xs">✓✓</span>}
                                     {preview}
                                 </p>
@@ -152,7 +152,7 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
       {/* Notifications Modal */}
       {showNotifications && (
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end">
-              <div className="w-80 h-full bg-white shadow-2xl animate-in slide-in-from-right flex flex-col">
+              <div className="w-80 h-full bg-white dark:bg-gray-900 shadow-2xl animate-in slide-in-from-right flex flex-col">
                   <div className="p-4 bg-[#008069] text-white flex justify-between items-center">
                       <h2 className="font-bold">Notificações</h2>
                       <button onClick={() => setShowNotifications(false)}><X size={20}/></button>
@@ -162,10 +162,10 @@ const ChatListPage: React.FC<ChatListPageProps> = ({ currentUser }) => {
                           <p className="text-center text-gray-400 mt-10 text-sm">Nenhuma notificação recente.</p>
                       ) : (
                           notifications.map((notif, i) => (
-                              <div key={i} className="flex items-center gap-3 p-3 border-b border-gray-100">
-                                  <img src={notif.photo || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full bg-gray-200" />
+                              <div key={i} className="flex items-center gap-3 p-3 border-b border-gray-100 dark:border-gray-800">
+                                  <img src={notif.photo || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
                                   <div className="text-sm">
-                                      <p className="text-gray-800"><span className="font-bold">{notif.name}</span> {notif.content}</p>
+                                      <p className="text-gray-800 dark:text-gray-200"><span className="font-bold">{notif.name}</span> {notif.content}</p>
                                       <span className="text-xs text-gray-400">{notif.timestamp ? formatTimeSP(notif.timestamp) : 'Hoje'}</span>
                                   </div>
                               </div>
