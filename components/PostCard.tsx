@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, MessageSquare, Play, Trash2, Send, UserPlus, CornerDownRight } from 'lucide-react';
+import { Heart, MessageSquare, Play, Trash2, Send, UserPlus } from 'lucide-react';
 import { Post, User, formatTimeSP, Comment } from '../types';
 import { api } from '../services/api';
 import AudioMessage from './AudioMessage';
@@ -33,6 +33,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const handleLike = async () => {
     const newLiked = !liked;
     setLiked(newLiked);
+    // Ensure we are working with numbers
     setLikesCount(prev => newLiked ? Number(prev) + 1 : Number(prev) - 1);
     
     try {
@@ -70,10 +71,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       setNewComment(''); // Clear input immediately
       
       try {
+          // Send to API
           await api.commentPost(currentUser.id, post.id, commentToSend);
+          
+          // Force update counter as number
           setCommentsCount(prev => Number(prev) + 1);
           
-          // CRITICAL FIX: Load all comments from server to ensure sync (old + new)
+          // CRITICAL: Reload ALL comments from server to ensure sync (get old + new)
+          // The API getComments now has a cache buster, so this will fetch fresh data
           await loadComments();
           
       } catch(e) {
@@ -85,7 +90,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const handleReply = (userName: string) => {
       setNewComment(`@${userName} `);
       commentInputRef.current?.focus();
-      commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   const toggleVideo = () => {
@@ -104,6 +108,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   }
 
   if(deleted) return null;
+
+  // Format date for footer
+  const postDate = new Date(post.timestamp);
+  const formattedDate = postDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 overflow-hidden transition-colors">
@@ -178,7 +186,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
             <Heart size={24} fill={liked ? "currentColor" : "none"} />
         </button>
 
-        <button onClick={() => commentInputRef.current?.focus()} className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200 hover:opacity-70">
+        <button onClick={() => { setShowComments(true); commentInputRef.current?.focus(); }} className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200 hover:opacity-70">
             <MessageSquare size={24} className="-scale-x-100" />
         </button>
         
@@ -190,40 +198,40 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       <div className="px-4 pb-4">
           <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">{likesCount} curtidas</p>
           
+          {/* Instagram style: View all comments button */}
           {commentsCount > 0 && !showComments && (
               <button onClick={loadComments} className="text-gray-500 dark:text-gray-400 text-sm mb-2 hover:text-gray-700 dark:hover:text-gray-300">
                   Ver todos os {commentsCount} comentários
               </button>
           )}
 
+          {/* Comments List */}
           {showComments && (
               <div className="space-y-3 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
                   {loadingComments ? (
                       <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                   ) : (
                       comments.map((c, i) => (
-                          <div key={i} className="flex gap-3 group">
-                              <Link to={`/user/${c.user_id}`} className="flex-shrink-0">
+                          <div key={i} className="flex gap-3 group items-start">
+                              <Link to={`/user/${c.user_id}`} className="flex-shrink-0 mt-0.5">
                                   <img src={c.photo || "https://picsum.photos/30/30"} className="w-8 h-8 rounded-full object-cover bg-gray-200" />
                               </Link>
                               <div className="flex-1">
-                                  <div className="flex flex-col">
-                                      <p className="text-sm text-gray-800 dark:text-gray-200 leading-snug">
-                                          <Link to={`/user/${c.user_id}`} className="font-bold mr-2 hover:underline text-gray-900 dark:text-white">{c.name}</Link>
-                                          {c.content}
-                                      </p>
-                                      <div className="flex gap-3 mt-1">
-                                          <span className="text-[10px] text-gray-400">{formatTimeSP(c.timestamp)}</span>
-                                          <button 
-                                            onClick={() => handleReply(c.name)}
-                                            className="text-[10px] font-bold text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400"
-                                          >
-                                              Responder
-                                          </button>
-                                      </div>
+                                  <p className="text-sm text-gray-800 dark:text-gray-200 leading-snug">
+                                      <Link to={`/user/${c.user_id}`} className="font-bold mr-2 hover:underline text-gray-900 dark:text-white">{c.name}</Link>
+                                      {c.content}
+                                  </p>
+                                  <div className="flex gap-4 mt-1 items-center">
+                                      <span className="text-[10px] text-gray-400">{formatTimeSP(c.timestamp)}</span>
+                                      <button 
+                                        onClick={() => handleReply(c.name)}
+                                        className="text-[10px] font-bold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                                      >
+                                          Responder
+                                      </button>
                                   </div>
                               </div>
-                              <button className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity self-start">
+                              <button className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
                                   <Heart size={12} />
                               </button>
                           </div>
@@ -233,7 +241,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
           )}
 
           <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-3">
-              {new Date(post.timestamp).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })} • {formatTimeSP(post.timestamp)}
+              {formattedDate}
           </p>
 
           <div className="flex items-center gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">

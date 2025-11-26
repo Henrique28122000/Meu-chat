@@ -119,7 +119,8 @@ export const api = {
   },
 
   getComments: async (post_id: string) => {
-    return request<Comment[]>(`getComments.php?post_id=${post_id}`);
+    // Adiciona timestamp para evitar cache do navegador e garantir comentários atualizados
+    return request<Comment[]>(`getComments.php?post_id=${post_id}&t=${Date.now()}`);
   },
 
   // --- Status ---
