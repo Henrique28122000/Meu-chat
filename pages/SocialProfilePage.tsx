@@ -43,26 +43,31 @@ const SocialProfilePage: React.FC<SocialProfilePageProps> = ({ currentUser }) =>
       }
   }
 
-  if(loading || !profile) return <div className="h-full bg-white"></div>;
+  if(loading || !profile) return <div className="h-full bg-white dark:bg-gray-900 flex items-center justify-center"><div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
-    <div className="flex flex-col h-full bg-white pb-20 overflow-y-auto">
-        <div className="h-32 bg-[#008069] relative">
-             <Link to="/" className="absolute top-4 left-4 p-2 bg-black/20 text-white rounded-full backdrop-blur-sm"><ArrowLeft /></Link>
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 pb-20 overflow-y-auto no-scrollbar">
+        {/* Banner */}
+        <div className="h-32 gradient-bg relative shrink-0">
+             <Link to="/" className="absolute top-4 left-4 p-2 bg-black/20 text-white rounded-full backdrop-blur-sm hover:bg-black/30 transition z-10"><ArrowLeft size={20} /></Link>
         </div>
 
-        <div className="px-6 relative -mt-12 mb-6">
+        {/* Profile Info */}
+        <div className="px-5 relative -mt-12 mb-2 shrink-0">
             <div className="flex justify-between items-end">
-                <img src={profile.photo || "https://picsum.photos/100/100"} className="w-24 h-24 rounded-full border-4 border-white shadow-md bg-gray-200" />
+                <img 
+                    src={profile.photo || "https://picsum.photos/100/100"} 
+                    className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900 shadow-lg bg-gray-200 object-cover" 
+                />
                 
-                {/* Only show actions if not me */}
+                {/* Actions */}
                 {profile.id !== currentUser.id && (
                 <div className="flex gap-2 mb-2">
-                    <Link to={`/chat/${profile.id}`} className="p-2.5 bg-gray-100 text-gray-700 rounded-full font-bold border border-gray-200"><MessageCircle size={20}/></Link>
+                    <Link to={`/chat/${profile.id}`} className="p-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-full font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition"><MessageCircle size={20}/></Link>
                     <button 
                         onClick={toggleFollow}
-                        className={`px-6 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-sm transition-all ${
-                            profile.is_following ? 'bg-gray-200 text-gray-800' : 'bg-[#008069] text-white'
+                        className={`px-5 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-sm transition-all text-sm ${
+                            profile.is_following ? 'bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200' : 'bg-[#008069] text-white hover:bg-[#006e5a]'
                         }`}
                     >
                         {profile.is_following ? <><UserCheck size={18}/> Seguindo</> : <><UserPlus size={18}/> Seguir</>}
@@ -72,30 +77,33 @@ const SocialProfilePage: React.FC<SocialProfilePageProps> = ({ currentUser }) =>
             </div>
             
             <div className="mt-3">
-                <h1 className="text-xl font-bold text-gray-900">{profile.name}</h1>
-                <p className="text-gray-500 text-sm">{profile.email}</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{profile.name}</h1>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">{profile.email}</p>
             </div>
 
-            <div className="flex gap-6 mt-6 py-4 border-y border-gray-100">
-                <div className="text-center">
-                    <span className="block font-bold text-lg text-gray-800">{posts.length}</span>
-                    <span className="text-xs text-gray-500">Posts</span>
+            {/* Stats */}
+            <div className="flex justify-around mt-6 py-4 border-y border-gray-100 dark:border-gray-800">
+                <div className="text-center w-1/3">
+                    <span className="block font-bold text-xl text-gray-800 dark:text-gray-100">{posts.length}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Posts</span>
                 </div>
-                <div className="text-center">
-                    <span className="block font-bold text-lg text-gray-800">{profile.followers}</span>
-                    <span className="text-xs text-gray-500">Seguidores</span>
+                <div className="text-center w-1/3 border-l border-r border-gray-100 dark:border-gray-800">
+                    <span className="block font-bold text-xl text-gray-800 dark:text-gray-100">{profile.followers}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Seguidores</span>
                 </div>
-                <div className="text-center">
-                    <span className="block font-bold text-lg text-gray-800">{profile.following}</span>
-                    <span className="text-xs text-gray-500">Seguindo</span>
+                <div className="text-center w-1/3">
+                    <span className="block font-bold text-xl text-gray-800 dark:text-gray-100">{profile.following}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Seguindo</span>
                 </div>
             </div>
         </div>
 
-        <div className="px-4 bg-gray-50 pt-4 flex-1">
+        {/* Posts List */}
+        <div className="px-4 bg-gray-50 dark:bg-gray-950 pt-4 flex-1">
             {posts.length === 0 ? <p className="text-gray-400 text-sm text-center py-10">Nenhuma publicação ainda.</p> : (
                 posts.map(p => <PostCard key={p.id} post={p} currentUser={currentUser} />)
             )}
+            <div className="h-4"></div>
         </div>
     </div>
   );
