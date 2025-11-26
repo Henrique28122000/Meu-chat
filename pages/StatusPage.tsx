@@ -94,10 +94,10 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                  } else if (res.file_path) {
                      mediaUrl = `https://paulohenriquedev.site/api/${res.file_path}`;
                  } else {
-                     throw new Error("Falha no upload da imagem");
+                     throw new Error("Servidor não retornou URL da imagem.");
                  }
-             } catch (uploadError) {
-                 alert("Erro no upload da imagem. Tente novamente.");
+             } catch (uploadError: any) {
+                 alert("Erro no upload da imagem: " + (uploadError.message || "Tente novamente."));
                  setUploading(false);
                  return;
              }
@@ -105,7 +105,6 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
           const response = await api.postStatus(currentUser.id, mediaUrl, type, caption);
           
-          // Check for success or specific error message
           if(response && response.status === 'success') {
               setShowCreator(false);
               setFile(null); 
@@ -119,7 +118,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
       } catch(e: any) {
           console.error(e);
-          // Show the actual error message if available (from our PHP catch block)
+          // Show the actual error message if available
           if (e.message) {
               alert("Erro: " + e.message);
           } else {

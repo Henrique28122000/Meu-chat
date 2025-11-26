@@ -5,8 +5,20 @@ const BASE_URL = 'https://paulohenriquedev.site/api';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE_URL}/${endpoint}`, options);
-  if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-  const data = await response.json();
+  
+  // Tenta ler o corpo da resposta como JSON
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    // Se o servidor retornou erro (ex: 400 ou 500), tenta pegar a mensagem do JSON
+    const errorMessage = data?.message || `Erro API: ${response.status} ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  if (!data) {
+      throw new Error("Resposta vazia do servidor");
+  }
+
   return data as T;
 }
 
