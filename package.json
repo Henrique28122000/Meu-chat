@@ -13,7 +13,9 @@
     "react": "^19.2.0",
     "lucide-react": "^0.554.0",
     "react-router-dom": "^7.9.6",
-    "firebase": "^12.6.0"
+    "firebase": "^12.6.0",
+    "@capacitor/core": "^7.4.4",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

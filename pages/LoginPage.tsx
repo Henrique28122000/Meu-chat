@@ -1,9 +1,11 @@
 
-import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithPopup, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { api } from '../services/api';
 import { MessageCircle } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 interface LoginPageProps {
   onLogin: (user: any) => void;
@@ -13,15 +15,44 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+      // Inicializa o plugin apenas se estiver no modo nativo (App)
+      if (Capacitor.isNativePlatform()) {
+          GoogleAuth.initialize({
+              clientId: '555296879685-xxxxxxxx.apps.googleusercontent.com', // Coloque seu Client ID Web aqui se necessário
+              scopes: ['profile', 'email'],
+              grantOfflineAccess: true,
+          });
+      }
+  }, []);
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
+    
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      let user: any;
+      let photoUrl = '';
+
+      if (Capacitor.isNativePlatform()) {
+        // --- LÓGICA NATIVA (APK/ANDROID) ---
+        // Abre o seletor de contas nativo do Android
+        const googleUser = await GoogleAuth.signIn();
+        
+        // Cria credencial do Firebase usando o token nativo
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        const result = await signInWithCredential(auth, credential);
+        user = result.user;
+        photoUrl = user.photoURL || '';
+
+      } else {
+        // --- LÓGICA WEB (NAVEGADOR) ---
+        const result = await signInWithPopup(auth, googleProvider);
+        user = result.user;
+        photoUrl = user.photoURL || '';
+      }
       
-      const photoUrl = user.photoURL || '';
-      
+      // Registro no PHP (Comum para ambos)
       const response = await api.registerUser(
         user.displayName || 'Usuário',
         user.email || '',
@@ -38,9 +69,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       };
 
       onLogin(appUser);
+
     } catch (err: any) {
       console.error(err);
-      setError('Falha no login com Google. ' + err.message);
+      setError('Falha no login. ' + (err.message || 'Tente novamente.'));
     } finally {
       setLoading(false);
     }
