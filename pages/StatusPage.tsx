@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { User, Viewer, StatusGroup, formatTimeSP } from '../types';
-import { Plus, X, Camera, Trash2, Eye, Send, Video, Mic, Type } from 'lucide-react';
+import { Plus, X, Camera, Trash2, Eye, Send, Video, Mic, Type, Image as ImageIcon } from 'lucide-react';
 import AudioMessage from '../components/AudioMessage';
+import AudioRecorder from '../components/AudioRecorder';
 
 interface StatusPageProps {
   currentUser: User;
@@ -20,15 +21,15 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
   
   // Creator State
   const [showCreator, setShowCreator] = useState(false);
+  const [creatorMode, setCreatorMode] = useState<'text' | 'camera' | 'video' | 'audio'>('text');
+  
   const [file, setFile] = useState<File | Blob | null>(null);
-  const [type, setType] = useState<'image' | 'text'>('image');
   const [caption, setCaption] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // Video Ref for Viewer
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  const audioRef = React.useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const fetchStatuses = async () => {
       try {
@@ -74,11 +75,11 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
   // --- POSTING LOGIC ---
   const handlePost = async () => {
-      if(type === 'image' && !file) {
-          alert("Selecione uma foto.");
+      if(creatorMode !== 'text' && !file) {
+          alert("Conteúdo vazio.");
           return;
       }
-      if(type === 'text' && !caption.trim()) {
+      if(creatorMode === 'text' && !caption.trim()) {
           alert("Digite algum texto.");
           return;
       }
@@ -87,10 +88,21 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
 
       try {
           let mediaUrl = '';
+          let mediaType = creatorMode === 'camera' ? 'image' : creatorMode; // 'text', 'video', 'audio'
           
-          if (file && type === 'image') {
+          // Upload logic based on type
+          if (file) {
              try {
-                 const res = await api.uploadPhoto(file as File, currentUser.id);
+                 let res: any;
+                 
+                 if (creatorMode === 'camera') {
+                     res = await api.uploadPhoto(file as File, currentUser.id);
+                 } else if (creatorMode === 'video') {
+                     res = await api.uploadVideo(file as File, currentUser.id);
+                 } else if (creatorMode === 'audio') {
+                     res = await api.uploadAudio(file as Blob, currentUser.id);
+                 }
+
                  if(res.file_url) {
                      mediaUrl = res.file_url;
                  } else if (res.file_path) {
@@ -105,14 +117,14 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
              }
           }
 
-          const response = await api.postStatus(currentUser.id, mediaUrl, type, caption);
+          const response = await api.postStatus(currentUser.id, mediaUrl, mediaType, caption);
           
           if(response && response.status === 'success') {
               setShowCreator(false);
-              setFile(null); setPreview(null); setCaption(''); setType('image');
+              setFile(null); setPreview(null); setCaption(''); setCreatorMode('text');
               await fetchStatuses(); 
           } else {
-              alert(response.message || "Erro desconhecido ao salvar status.");
+              alert(response.message || "Erro ao salvar status.");
           }
 
       } catch(e: any) {
@@ -122,13 +134,19 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
       }
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, mode: 'camera' | 'video') => {
       if(e.target.files && e.target.files[0]){
           const f = e.target.files[0];
           setFile(f);
-          setType('image');
+          setCreatorMode(mode);
           setPreview(URL.createObjectURL(f));
       }
+  }
+
+  const handleAudioRecorded = (blob: Blob) => {
+      setFile(blob);
+      setCreatorMode('audio');
+      setPreview(URL.createObjectURL(blob));
   }
 
   // --- VIEWER LOGIC ---
@@ -151,13 +169,9 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
           setProgress(0);
           
           // Logic for Video/Audio Duration
-          let duration = 5000; // Default 5s for images/text
-          if (currentStatus.media_type === 'video' && videoRef.current) {
-              return; 
-          }
-          if (currentStatus.media_type === 'audio') {
-              return;
-          }
+          let duration = 5000; // Default 5s
+          if (currentStatus.media_type === 'video' && videoRef.current) return; 
+          if (currentStatus.media_type === 'audio') return; // Audio has its own ended event
 
           const step = 100 / (duration / 100);
           timer = setInterval(() => {
@@ -290,7 +304,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                    const originalIndex = groupedStatuses.findIndex(g => g.user_id === group.user_id);
                    const lastStatus = group.statuses[group.statuses.length - 1];
                    
-                   // Preview image (or placeholder if text/audio)
+                   // Preview
                    let previewImg = group.user_photo; 
                    if(lastStatus.media_type === 'image') previewImg = lastStatus.media_url;
                    
@@ -319,62 +333,107 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
            </div>
       </div>
 
+      {/* --- CREATOR MODAL --- */}
       {showCreator && (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col animate-in slide-in-from-bottom">
-              <div className="flex justify-between p-4 bg-black/50 absolute top-0 w-full z-10 text-white">
-                  <button onClick={() => setShowCreator(false)}><X /></button>
-                  <span className="font-bold">Novo Story</span>
-                  <button onClick={handlePost} disabled={uploading} className="bg-[#008069] px-4 py-1 rounded-full text-sm font-bold disabled:opacity-50">
-                      {uploading ? '...' : <Send size={18} />}
+          <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col animate-in slide-in-from-bottom">
+              {/* Header */}
+              <div className="flex justify-between items-center p-4 bg-black/40 text-white z-20">
+                  <button onClick={() => setShowCreator(false)}><X size={24}/></button>
+                  <span className="font-bold text-lg">Criar Status</span>
+                  <button onClick={handlePost} disabled={uploading} className="bg-[#008069] w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 shadow-lg">
+                      {uploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <Send size={20} className="-rotate-12 mr-0.5 mt-0.5" />}
                   </button>
               </div>
               
-              <div className="flex-1 bg-gray-900 flex flex-col items-center justify-center relative">
-                  {!file && type !== 'text' ? (
-                      <div className="grid grid-cols-2 gap-8">
-                          <label onClick={() => setType('image')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
-                              <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition"><Camera size={36}/></div>
-                              <span className="text-sm font-bold">Foto</span>
-                              <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
-                          </label>
-                          <div onClick={() => setType('text')} className="flex flex-col items-center text-white gap-2 cursor-pointer">
-                               <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition"><Type size={36}/></div>
-                               <span className="text-sm font-bold">Texto</span>
-                          </div>
+              {/* Main Content Area */}
+              <div className="flex-1 flex flex-col items-center justify-center relative bg-gray-900 overflow-hidden">
+                  
+                  {/* Mode: TEXT */}
+                  {creatorMode === 'text' && (
+                      <textarea 
+                          value={caption}
+                          onChange={e => setCaption(e.target.value)}
+                          placeholder="Digite seu status..."
+                          className="w-full h-full bg-teal-900 text-white text-3xl font-bold text-center outline-none resize-none pt-[40vh] px-8 placeholder-teal-700/50"
+                          autoFocus
+                      />
+                  )}
+
+                  {/* Mode: PREVIEW (Image/Video/Audio) */}
+                  {file && (
+                      <div className="relative w-full h-full flex items-center justify-center bg-black">
+                          {creatorMode === 'camera' && <img src={preview!} className="max-w-full max-h-full object-contain" />}
+                          {creatorMode === 'video' && <video src={preview!} controls className="max-w-full max-h-full" />}
+                          {creatorMode === 'audio' && (
+                              <div className="p-8 bg-teal-800 rounded-3xl flex flex-col items-center animate-pulse">
+                                  <Mic size={48} className="text-white mb-4" />
+                                  <audio src={preview!} controls />
+                              </div>
+                          )}
+                          <button onClick={() => { setFile(null); setPreview(null); setCreatorMode('text'); }} className="absolute top-4 right-4 bg-black/60 p-2 rounded-full text-white z-20 hover:bg-red-500/80 transition"><Trash2 size={20}/></button>
                       </div>
-                  ) : (
-                      <>
-                        {type === 'image' && <img src={preview!} className="max-w-full max-h-[70vh]" />}
-                        {type === 'text' && (
-                            <textarea 
-                                value={caption}
-                                onChange={e => setCaption(e.target.value)}
-                                placeholder="Digite..."
-                                className="w-full h-full bg-teal-900 text-white text-3xl font-bold text-center outline-none resize-none pt-40"
-                                autoFocus
-                            />
-                        )}
-                        
-                        {type === 'image' && (
-                            <button onClick={() => { setFile(null); setPreview(null); setType('image'); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>
-                        )}
-                        {type === 'text' && (
-                             <button onClick={() => { setCaption(''); setType('image'); }} className="absolute top-16 right-4 bg-black/50 text-white p-2 rounded-full"><X/></button>
-                        )}
-                      </>
+                  )}
+
+                  {/* Mode Selection Grid (Only if no file selected and not text mode active/typing) */}
+                  {!file && creatorMode === 'text' && !caption && (
+                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         <div className="pointer-events-auto grid grid-cols-2 gap-6 p-6">
+                            {/* Text is default bg, so buttons switch to other modes */}
+                         </div>
+                     </div>
                   )}
               </div>
-              
-              {type === 'image' && file && (
-                  <div className="p-4 bg-black relative z-10">
-                      <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Adicionar legenda..." className="w-full bg-gray-800 text-white p-3 rounded-full outline-none text-center" />
+
+              {/* Bottom Tabs / Inputs */}
+              {!file && (
+                  <div className="bg-black p-6 pb-8">
+                      <div className="flex justify-around items-center">
+                          <button onClick={() => setCreatorMode('text')} className={`flex flex-col items-center gap-1 ${creatorMode === 'text' ? 'text-teal-400' : 'text-gray-400'}`}>
+                              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-1"><Type size={20}/></div>
+                              <span className="text-xs font-bold">Texto</span>
+                          </button>
+
+                          <label className={`flex flex-col items-center gap-1 cursor-pointer ${creatorMode === 'camera' ? 'text-teal-400' : 'text-gray-400'}`}>
+                              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-1"><Camera size={20}/></div>
+                              <span className="text-xs font-bold">Foto</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'camera')} />
+                          </label>
+
+                          <label className={`flex flex-col items-center gap-1 cursor-pointer ${creatorMode === 'video' ? 'text-teal-400' : 'text-gray-400'}`}>
+                              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-1"><Video size={20}/></div>
+                              <span className="text-xs font-bold">Vídeo</span>
+                              <input type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, 'video')} />
+                          </label>
+
+                          <div className={`relative flex flex-col items-center gap-1 ${creatorMode === 'audio' ? 'text-teal-400' : 'text-gray-400'}`}>
+                              <div className="absolute -top-14 opacity-0 pointer-events-auto hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                  <AudioRecorder onSend={handleAudioRecorded} />
+                              </div>
+                              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-1"><Mic size={20}/></div>
+                              <span className="text-xs font-bold">Áudio</span>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {/* Caption Input for Image/Video */}
+              {(creatorMode === 'camera' || creatorMode === 'video') && file && (
+                  <div className="p-3 bg-black">
+                      <input 
+                        value={caption} 
+                        onChange={e => setCaption(e.target.value)} 
+                        placeholder="Adicionar legenda..." 
+                        className="w-full bg-gray-800 text-white p-3 rounded-full outline-none text-center placeholder-gray-500" 
+                      />
                   </div>
               )}
           </div>
       )}
 
+      {/* --- VIEWER OVERLAY --- */}
       {activeGroup && activeStatus && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
+            {/* Progress Bars */}
             <div className="absolute top-2 left-2 right-2 flex gap-1 z-20">
                 {activeGroup.statuses.map((st, i) => (
                     <div key={st.id} className="h-1 bg-white/30 flex-1 rounded-full overflow-hidden">
@@ -388,6 +447,7 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 ))}
             </div>
 
+            {/* Header */}
             <div className="flex items-center justify-between p-4 pt-6 text-white z-10">
                 <div className="flex items-center gap-3">
                     <img src={activeGroup.user_photo} className="w-10 h-10 rounded-full border border-white/50" />
@@ -404,33 +464,36 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 </div>
             </div>
 
+            {/* Navigation Areas */}
             <div className="absolute inset-0 flex z-0">
                 <div className="w-1/3 h-full" onClick={prevStatus}></div>
                 <div className="w-1/3 h-full"></div> 
                 <div className="w-1/3 h-full" onClick={nextStatus}></div>
             </div>
 
+            {/* Media Content */}
             <div className="flex-1 flex items-center justify-center relative bg-gray-900 pointer-events-none">
-                 {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full" />}
+                 {activeStatus.media_type === 'image' && <img src={activeStatus.media_url} className="max-w-full max-h-full object-contain" />}
+                 
                  {activeStatus.media_type === 'video' && (
                      <video 
                         ref={videoRef}
                         src={activeStatus.media_url} 
                         className="max-w-full max-h-full pointer-events-auto" 
                         autoPlay 
+                        playsInline
                         onEnded={() => { setProgress(100); setTimeout(nextStatus, 100); }}
                      />
                  )}
+                 
                  {activeStatus.media_type === 'audio' && (
                      <div className="w-full px-10 pointer-events-auto bg-black/50 p-8 rounded-2xl backdrop-blur-md border border-white/10 flex flex-col items-center">
-                         <div className="w-16 h-16 bg-teal-600 rounded-full flex items-center justify-center mb-4 animate-pulse">
-                            <Mic size={32} className="text-white" />
+                         <div className="w-20 h-20 bg-teal-600 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                            <Mic size={40} className="text-white" />
                          </div>
-                         <div className="text-white text-center mb-4 font-bold text-lg">Áudio de Status</div>
                          <div className="w-full">
                             <AudioMessage src={activeStatus.media_url} isMe={false} />
                          </div>
-                         {/* Hidden audio element to control progress flow */}
                          <audio 
                             src={activeStatus.media_url}
                             autoPlay
@@ -439,14 +502,20 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                          />
                      </div>
                  )}
-                 {activeStatus.media_type === 'text' && <div className="w-full h-full bg-teal-900 flex items-center justify-center p-8 text-center"><p className="text-2xl font-bold text-white">{activeStatus.caption}</p></div>}
+                 
+                 {activeStatus.media_type === 'text' && (
+                    <div className="w-full h-full bg-teal-900 flex items-center justify-center p-8 text-center break-words">
+                        <p className="text-3xl font-bold text-white leading-relaxed">{activeStatus.caption}</p>
+                    </div>
+                 )}
             </div>
             
+            {/* Caption (for non-text) & Stats */}
             <div className="absolute bottom-10 w-full flex flex-col items-center text-white z-20 pb-4 pointer-events-auto">
-                {activeStatus.caption && activeStatus.media_type !== 'text' && <p className="text-lg bg-black/30 p-2 rounded mb-4 max-w-[80%] text-center">{activeStatus.caption}</p>}
+                {activeStatus.caption && activeStatus.media_type !== 'text' && <p className="text-lg bg-black/40 backdrop-blur-md p-3 rounded-xl mb-4 max-w-[85%] text-center">{activeStatus.caption}</p>}
                 
                 {activeGroup.user_id === currentUser.id && (
-                    <button onClick={loadViewers} className="flex flex-col items-center mt-2">
+                    <button onClick={loadViewers} className="flex flex-col items-center mt-2 opacity-90 hover:opacity-100">
                         <Eye size={24} />
                         <span className="text-xs font-bold mt-1">
                             {viewers ? viewers.length : (activeStatus.viewers_count || 0)} views
@@ -455,17 +524,18 @@ const StatusPage: React.FC<StatusPageProps> = ({ currentUser }) => {
                 )}
             </div>
 
+            {/* Viewer List Modal */}
             {viewers && (
-                <div className="absolute bottom-0 w-full bg-white dark:bg-gray-800 rounded-t-3xl h-[50%] text-black dark:text-white z-30 animate-in slide-in-from-bottom p-4">
+                <div className="absolute bottom-0 w-full bg-white dark:bg-gray-800 rounded-t-3xl h-[50%] text-black dark:text-white z-30 animate-in slide-in-from-bottom p-4 shadow-2xl">
                     <div className="flex justify-between items-center mb-4">
                          <h3 className="font-bold text-lg">Visualizado por {viewers.length}</h3>
                          <button onClick={() => setViewers(null)}><X size={24}/></button>
                     </div>
-                    <ul className="overflow-y-auto h-full pb-10">
+                    <ul className="overflow-y-auto h-full pb-10 space-y-2">
                         {viewers.map((v, idx) => (
-                            <li key={idx} className="flex items-center gap-3 py-3 border-b border-gray-100 dark:border-gray-700">
-                                <img src={v.photo} className="w-12 h-12 rounded-full bg-gray-200" />
-                                <span className="font-bold text-gray-800 dark:text-gray-200">{v.name}</span>
+                            <li key={idx} className="flex items-center gap-3 py-2 px-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl">
+                                <img src={v.photo} className="w-10 h-10 rounded-full bg-gray-200 object-cover" />
+                                <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">{v.name}</span>
                             </li>
                         ))}
                     </ul>
