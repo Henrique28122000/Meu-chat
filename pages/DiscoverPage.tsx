@@ -21,7 +21,6 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
   const [postFile, setPostFile] = useState<File | Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchFeed = async () => {
     try {
@@ -56,6 +55,8 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
   }
 
   const handlePublish = async () => {
+      if(!postText.trim() && !postFile) return alert("Escreva algo ou adicione mídia.");
+
       setUploading(true);
       try {
           let mediaUrl = '';
@@ -123,6 +124,7 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
            {!loading && filteredPosts.length === 0 && (
                <p className="text-center text-gray-400 mt-10">Nenhum post encontrado nesta categoria.</p>
            )}
+           <div className="h-20"></div> {/* Espaço extra no fim */}
       </div>
 
       <button 
@@ -136,7 +138,7 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in slide-in-from-bottom">
               <div className="bg-white dark:bg-gray-800 w-full max-w-md h-[80%] sm:h-auto sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl transition-colors">
                   <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
-                      <button onClick={resetPost}><X size={24} className="text-gray-400" /></button>
+                      <button onClick={resetPost}><X size={24} className="text-gray-400 hover:text-gray-600" /></button>
                       <h3 className="font-bold text-gray-800 dark:text-gray-200">Nova Publicação</h3>
                       <button onClick={handlePublish} disabled={uploading} className="font-bold text-[#008069] disabled:opacity-50">
                           {uploading ? '...' : 'Postar'}
@@ -149,30 +151,31 @@ const DiscoverPage: React.FC<DiscoverPageProps> = ({ currentUser }) => {
                           placeholder="No que você está pensando?"
                           value={postText}
                           onChange={e => setPostText(e.target.value)}
+                          autoFocus
                       ></textarea>
 
                       {previewUrl && (
-                          <div className="mt-4 relative rounded-xl overflow-hidden bg-black max-h-60 flex justify-center">
+                          <div className="mt-4 relative rounded-xl overflow-hidden bg-black max-h-60 flex justify-center group">
                               {postType === 'image' && <img src={previewUrl} className="max-h-60 object-contain" />}
                               {postType === 'video' && <video src={previewUrl} controls className="max-h-60" />}
-                              <button onClick={() => { setPostFile(null); setPreviewUrl(null); setPostType('text'); }} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full"><X size={16}/></button>
+                              <button onClick={() => { setPostFile(null); setPreviewUrl(null); setPostType('text'); }} className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-red-500 transition"><X size={16}/></button>
                           </div>
                       )}
                   </div>
 
                   <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-b-2xl">
                       <div className="flex justify-between items-center gap-2">
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition active:scale-95">
                               <ImageIcon className="text-[#008069] mb-1" />
                               <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Foto</span>
                               <input type="file" accept="image/*" className="hidden" onChange={e => handleFileSelect(e, 'image')} />
                           </label>
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition active:scale-95">
                               <Video className="text-[#008069] mb-1" />
                               <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Vídeo</span>
                               <input type="file" accept="video/*" className="hidden" onChange={e => handleFileSelect(e, 'video')} />
                           </label>
-                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                          <label className="flex-1 flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition active:scale-95">
                               <Camera className="text-[#008069] mb-1" />
                               <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Câmera</span>
                               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFileSelect(e, 'image')} />

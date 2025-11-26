@@ -33,7 +33,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
   const handleLike = async () => {
     const newLiked = !liked;
     setLiked(newLiked);
-    // Ensure we are working with numbers
     setLikesCount(prev => newLiked ? Number(prev) + 1 : Number(prev) - 1);
     
     try {
@@ -50,40 +49,67 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       try {
           await api.followUser(currentUser.id, post.user_id, action);
       } catch (e) {
-          setIsFollowing(!isFollowing); // Revert on error
+          setIsFollowing(!isFollowing); 
       }
   }
 
   const loadComments = async () => {
+      if (showComments && comments.length > 0) {
+          // Se já estiver mostrando e tiver dados, pode fechar (toggle)
+          // Mas o usuário pediu "ver comentários", então vamos apenas recarregar se ele clicar no texto "Ver todos"
+          // Se ele clicar no ícone de balão, apenas foca.
+      }
+
       setLoadingComments(true);
       setShowComments(true);
       try {
           const data = await api.getComments(post.id);
-          if(Array.isArray(data)) setComments(data);
-      } catch(e) {}
-      setLoadingComments(false);
+          if(Array.isArray(data)) {
+              setComments(data);
+              // Atualiza o contador visualmente caso o servidor tenha um número diferente
+              if (data.length > commentsCount) {
+                  setCommentsCount(data.length);
+              }
+          } else {
+              setComments([]);
+          }
+      } catch(e) {
+          console.error("Erro ao carregar comentários", e);
+          setComments([]);
+      } finally {
+          setLoadingComments(false);
+      }
   }
 
   const sendComment = async () => {
       if(!newComment.trim()) return;
       
       const commentToSend = newComment;
-      setNewComment(''); // Clear input immediately
+      setNewComment(''); 
       
+      // Otimista: Adiciona fake temporário
+      const fakeComment: Comment = {
+          id: 'temp-' + Date.now(),
+          user_id: currentUser.id,
+          name: currentUser.name,
+          photo: currentUser.photo,
+          content: commentToSend,
+          timestamp: new Date().toISOString()
+      };
+      
+      setComments(prev => [...prev, fakeComment]);
+      setCommentsCount(prev => Number(prev) + 1);
+      setShowComments(true);
+
       try {
-          // Send to API
           await api.commentPost(currentUser.id, post.id, commentToSend);
-          
-          // Force update counter as number
-          setCommentsCount(prev => Number(prev) + 1);
-          
-          // CRITICAL: Reload ALL comments from server to ensure sync (get old + new)
-          // The API getComments now has a cache buster, so this will fetch fresh data
+          // Recarrega do servidor para pegar o ID real e timestamp correto
           await loadComments();
-          
       } catch(e) {
           alert("Erro ao comentar");
-          setNewComment(commentToSend); // Restore on error
+          setNewComment(commentToSend);
+          setComments(prev => prev.filter(c => c.id !== fakeComment.id));
+          setCommentsCount(prev => Number(prev) - 1);
       }
   }
 
@@ -109,9 +135,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
 
   if(deleted) return null;
 
-  // Format date for footer
   const postDate = new Date(post.timestamp);
-  const formattedDate = postDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formattedDate = postDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 overflow-hidden transition-colors">
@@ -147,7 +172,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       </div>
 
       {post.media_type === 'image' && post.media_url && (
-        <img src={post.media_url} className="w-full h-auto max-h-[500px] object-cover bg-gray-50" loading="lazy" />
+        <img src={post.media_url} className="w-full h-auto max-h-[500px] object-cover bg-gray-50 dark:bg-gray-900" loading="lazy" />
       )}
 
       {post.media_type === 'video' && post.media_url && (
@@ -186,7 +211,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
             <Heart size={24} fill={liked ? "currentColor" : "none"} />
         </button>
 
-        <button onClick={() => { setShowComments(true); commentInputRef.current?.focus(); }} className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200 hover:opacity-70">
+        <button onClick={() => { 
+            if(!showComments) loadComments(); 
+            commentInputRef.current?.focus(); 
+        }} className="flex items-center gap-1.5 text-gray-800 dark:text-gray-200 hover:opacity-70">
             <MessageSquare size={24} className="-scale-x-100" />
         </button>
         
@@ -198,30 +226,35 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
       <div className="px-4 pb-4">
           <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">{likesCount} curtidas</p>
           
-          {/* Instagram style: View all comments button */}
+          {/* Botão para ver comentários */}
           {commentsCount > 0 && !showComments && (
-              <button onClick={loadComments} className="text-gray-500 dark:text-gray-400 text-sm mb-2 hover:text-gray-700 dark:hover:text-gray-300">
+              <button onClick={loadComments} className="text-gray-500 dark:text-gray-400 text-sm mb-2 hover:text-gray-700 dark:hover:text-gray-300 font-medium">
                   Ver todos os {commentsCount} comentários
               </button>
           )}
 
-          {/* Comments List */}
+          {/* Lista de Comentários */}
           {showComments && (
-              <div className="space-y-3 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="space-y-4 mb-4 mt-2 animate-in fade-in slide-in-from-top-1 duration-200 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-xl">
                   {loadingComments ? (
-                      <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                        <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                      </div>
+                  ) : comments.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-2">Nenhum comentário ainda. Seja o primeiro!</p>
                   ) : (
                       comments.map((c, i) => (
                           <div key={i} className="flex gap-3 group items-start">
                               <Link to={`/user/${c.user_id}`} className="flex-shrink-0 mt-0.5">
-                                  <img src={c.photo || "https://picsum.photos/30/30"} className="w-8 h-8 rounded-full object-cover bg-gray-200" />
+                                  <img src={c.photo || "https://picsum.photos/30/30"} className="w-8 h-8 rounded-full object-cover bg-gray-200 border border-gray-200 dark:border-gray-700" />
                               </Link>
-                              <div className="flex-1">
-                                  <p className="text-sm text-gray-800 dark:text-gray-200 leading-snug">
+                              <div className="flex-1 min-w-0">
+                                  <div className="text-sm text-gray-800 dark:text-gray-200 leading-snug break-words">
                                       <Link to={`/user/${c.user_id}`} className="font-bold mr-2 hover:underline text-gray-900 dark:text-white">{c.name}</Link>
                                       {c.content}
-                                  </p>
-                                  <div className="flex gap-4 mt-1 items-center">
+                                  </div>
+                                  <div className="flex gap-4 mt-1.5 items-center">
                                       <span className="text-[10px] text-gray-400">{formatTimeSP(c.timestamp)}</span>
                                       <button 
                                         onClick={() => handleReply(c.name)}
@@ -231,9 +264,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
                                       </button>
                                   </div>
                               </div>
-                              <button className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                                  <Heart size={12} />
-                              </button>
                           </div>
                       ))
                   )}
@@ -245,13 +275,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUser }) => {
           </p>
 
           <div className="flex items-center gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">
-              <img src={currentUser.photo} className="w-7 h-7 rounded-full object-cover" />
+              <img src={currentUser.photo} className="w-8 h-8 rounded-full object-cover bg-gray-200" />
               <input 
                 ref={commentInputRef}
                 value={newComment}
                 onChange={e => setNewComment(e.target.value)}
                 placeholder="Adicione um comentário..."
                 className="flex-1 bg-transparent text-sm text-gray-800 dark:text-gray-200 focus:outline-none placeholder-gray-400"
+                onKeyDown={(e) => { if (e.key === 'Enter') sendComment(); }}
               />
               {newComment.trim() && (
                   <button onClick={sendComment} className="text-teal-600 dark:text-teal-400 font-bold text-sm hover:opacity-80">
