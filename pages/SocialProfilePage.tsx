@@ -78,7 +78,8 @@ const SocialProfilePage: React.FC<SocialProfilePageProps> = ({ currentUser }) =>
             
             <div className="mt-3">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">{profile.name}</h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">{profile.email}</p>
+                <p className="text-teal-600 dark:text-teal-400 font-medium text-sm mb-1">@{profile.username || 'user'}</p>
+                {profile.bio && <p className="text-gray-600 dark:text-gray-300 text-sm leading-snug">{profile.bio}</p>}
             </div>
 
             {/* Stats */}

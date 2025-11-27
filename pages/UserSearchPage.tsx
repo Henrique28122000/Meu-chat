@@ -35,7 +35,7 @@ const UserSearchPage: React.FC = () => {
   }, [query]);
 
   return (
-    <div className="flex flex-col h-full bg-white pb-20">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 pb-20">
       <header className="flex-none p-4 gradient-bg sticky top-0 flex items-center gap-3 h-20 shadow-md z-10 rounded-b-3xl">
         <Link to="/" className="p-2 text-white hover:bg-white/20 rounded-full transition">
            <ArrowLeft size={24} />
@@ -45,7 +45,7 @@ const UserSearchPage: React.FC = () => {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar pessoas..."
+                placeholder="Buscar por nome ou @usuario..."
                 className="w-full bg-white/10 text-white placeholder-white/60 rounded-2xl py-2.5 pl-4 pr-10 focus:outline-none focus:bg-white/20 focus:ring-2 focus:ring-white/30 text-base backdrop-blur-sm transition-all"
                 autoFocus
             />
@@ -61,16 +61,17 @@ const UserSearchPage: React.FC = () => {
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4 pl-2">Resultados</h2>
             <ul className="space-y-3">
                 {results.map(user => (
-                    <li key={user.id} className="flex items-center justify-between p-3.5 bg-gray-50 hover:bg-white border border-gray-100 rounded-2xl shadow-sm transition-all">
+                    <li key={user.id} className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm transition-all">
                         <Link to={`/user/${user.id}`} className="flex items-center space-x-3 overflow-hidden flex-1">
                             <img 
                                 src={user.photo || "https://picsum.photos/50/50"} 
                                 alt={user.name} 
-                                className="w-12 h-12 rounded-xl object-cover bg-gray-200 flex-shrink-0"
+                                className="w-12 h-12 rounded-xl object-cover bg-gray-200 dark:bg-gray-600 flex-shrink-0"
                             />
                             <div className="min-w-0">
-                                <h3 className="font-bold text-gray-800 truncate text-base">{user.name}</h3>
-                                <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                                <h3 className="font-bold text-gray-800 dark:text-gray-100 truncate text-base">{user.name}</h3>
+                                <p className="text-sm text-teal-600 dark:text-teal-400 font-medium truncate">@{user.username || 'user'}</p>
+                                {user.bio && <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user.bio}</p>}
                             </div>
                         </Link>
                     </li>

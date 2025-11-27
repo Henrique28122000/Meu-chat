@@ -5,6 +5,9 @@ export interface User {
   name: string;
   email: string;
   photo: string;
+  username: string; // @handle
+  bio?: string;
+  birthdate?: string;
   fcmToken?: string;
 }
 

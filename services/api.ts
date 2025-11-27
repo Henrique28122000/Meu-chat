@@ -24,10 +24,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // --- Auth & Users ---
-  registerUser: async (name: string, email: string, uid: string, photo: string) => {
+  checkUsername: async (username: string) => {
+    const data = await request<{available: boolean}>(`checkUsername.php?username=${username}`);
+    return data.available;
+  },
+
+  registerUser: async (name: string, email: string, uid: string, username: string, birthdate: string) => {
     return request<ApiResponse<any>>('registerUser.php', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password: uid, photo, uid }),
+      body: JSON.stringify({ name, email, uid, username, birthdate, bio: 'Novo usuário do PH Chat' }),
     });
   },
 
@@ -44,10 +49,10 @@ export const api = {
     return request<User[]>(`searchUsers.php?q=${query}`);
   },
 
-  updateProfile: async (user_id: string, name: string, photo: string) => {
+  updateProfile: async (user_id: string, name: string, photo: string, username: string, bio: string) => {
     return request<ApiResponse<any>>('updateProfile.php', {
       method: 'POST',
-      body: JSON.stringify({ user_id, name, photo }),
+      body: JSON.stringify({ user_id, name, photo, username, bio }),
     });
   },
 

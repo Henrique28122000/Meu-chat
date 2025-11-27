@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { getMessaging, isSupported, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
@@ -14,6 +14,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Exportando métodos de Email/Senha
+export const registerWithEmail = createUserWithEmailAndPassword;
+export const loginWithEmail = signInWithEmailAndPassword;
 
 export const messaging = async () => {
   const supported = await isSupported();
